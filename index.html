@@ -2,7 +2,10 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#3b2f25">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>ESTOPE! — Stop online com a turma</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
@@ -57,14 +60,32 @@ label.f{display:block;font-weight:600;font-size:14px;margin:14px 0 6px}
 #players .p.me .n{text-decoration:underline}
 #banner{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:11;background:var(--chalk);color:#fff;border-radius:16px;padding:10px 18px;font-weight:600;box-shadow:var(--shadow);text-align:center;max-width:min(560px,calc(100% - 20px));font-size:15px;border:3px solid #8a6a43}
 #banner .big{font-size:20px;display:block}
-@media (max-width:820px){#banner{top:auto;bottom:calc(var(--panelh,0px) + 10px)}}
-
 #panel{position:fixed;z-index:12;background:var(--paper);box-shadow:var(--shadow);display:flex;flex-direction:column;
   right:10px;top:70px;bottom:10px;width:min(440px,calc(100% - 20px));border-radius:20px;overflow:hidden;transition:transform .25s}
 #panel.min{transform:translateX(calc(100% + 20px))}
-@media (max-width:820px){
-  #panel{left:0;right:0;bottom:0;top:auto;width:100%;max-height:62vh;border-radius:20px 20px 0 0}
-  #panel.min{transform:translateY(calc(100% - 46px))}
+/* celular em pé: painel vira "gaveta" embaixo */
+@media (max-width:820px) and (orientation:portrait){
+  #banner{top:auto;bottom:calc(var(--panelh,0px) + 8px);padding:6px 12px;font-size:13px;border-width:2px}
+  #banner .big{font-size:16px}
+  #banner{transition:opacity .4s,transform .4s;pointer-events:none}
+  #banner.fade{opacity:0;transform:translateX(-50%) translateY(12px)}
+  #toast{bottom:auto;top:calc(env(safe-area-inset-top) + 100px);transform:translateX(-50%) translateY(-20px)}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+  #panel{left:0;right:0;bottom:var(--kb,0px);top:auto;width:100%;max-height:58vh;max-height:min(58dvh,calc(100dvh - var(--kb,0px) - 70px));border-radius:20px 20px 0 0;padding-bottom:env(safe-area-inset-bottom)}
+  #panel.min{transform:translateY(calc(100% - 46px - env(safe-area-inset-bottom)))}
+}
+/* celular deitado: painel na lateral, mais estreito */
+@media (max-height:520px) and (orientation:landscape){
+  #panel{top:8px;bottom:8px;right:8px;width:min(360px,46%);border-radius:16px}
+  #panelhead{padding:6px 10px}
+  #panelbody{padding:10px}
+  #banner{top:auto;bottom:8px;transition:opacity .4s,transform .4s;pointer-events:none;left:calc((100% - min(360px,46%) - 8px)/2);padding:5px 12px;font-size:12px;max-width:calc(100% - min(360px,46%) - 30px);border-width:2px}
+  #banner .big{font-size:15px}
+  #topbar{top:8px;left:8px}
+  .letter{width:54px;height:54px;font-size:44px}
+  #banner.fade{opacity:0;transform:translateX(-50%) translateY(12px)}
+  #toast{bottom:auto;top:56px;left:calc((100% - min(360px,46%) - 8px)/2);transform:translateX(-50%) translateY(-20px)}
+  #toast.show{transform:translateX(-50%) translateY(0)}
 }
 #panelhead{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f3ead7;border-bottom:2px solid var(--line);font-weight:700}
 #panelhead .t{flex:1;font-size:17px}
@@ -78,9 +99,9 @@ h3{margin:4px 0 10px;font-size:18px}
 .cat button{background:none;color:var(--red);font-size:18px;font-weight:700}
 .presets{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
 .preset{background:#efe7d6;border-radius:99px;padding:5px 10px;font-size:13px;font-weight:500}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.grid2 label{font-size:13px;font-weight:600;display:flex;flex-direction:column;gap:4px}
-.grid2 select,.grid2 input{padding:8px;border-radius:10px;border:2px solid var(--line);font-size:15px;background:#fff}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.grid2 label{font-size:13px;font-weight:600;display:flex;flex-direction:column;gap:4px;min-width:0}
+.grid2 select,.grid2 input{padding:8px;border-radius:10px;border:2px solid var(--line);font-size:16px;background:#fff;width:100%;min-width:0}
 .check{display:flex;gap:8px;align-items:center;margin:12px 0;font-size:14px}
 .sharebox{background:#fff;border:2px dashed var(--line);border-radius:12px;padding:10px;margin:12px 0;display:flex;gap:8px;align-items:center}
 .sharebox input{flex:1;border:0;font-size:13px;background:none;min-width:0}
@@ -104,7 +125,15 @@ h3{margin:4px 0 10px;font-size:18px}
 table.rv{border-collapse:collapse;font-size:14px;min-width:100%}
 table.rv th,table.rv td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 table.rv th{background:#f7f1e3;position:sticky;top:0;font-size:13px;white-space:nowrap}
-table.rv td.cat{font-weight:600;color:#3b4b7a;white-space:nowrap;background:#fcf8ef;position:sticky;left:0}
+table.rv td.cat{display:table-cell;border:0;border-bottom:1px solid var(--line);border-radius:0;font-weight:600;color:#3b4b7a;white-space:nowrap;background:#fcf8ef;position:sticky;left:0;z-index:1}
+table.rv th:first-child{position:sticky;left:0;z-index:2}
+@media (max-width:560px){
+  table.rv{font-size:13px}
+  table.rv td.cat{white-space:normal;min-width:76px;max-width:92px;font-size:12px;line-height:1.2;word-break:break-word}
+  table.rv th,table.rv td{padding:5px 6px}
+  .cell{min-width:98px}
+  .cell .w{font-size:20px}
+}
 .cell{min-width:120px}
 .cell .w{font-family:Caveat,cursive;font-size:22px;line-height:1}
 .cell.bad .w{text-decoration:line-through;color:#a33}
@@ -135,8 +164,17 @@ table.rv td.cat{font-weight:600;color:#3b4b7a;white-space:nowrap;background:#fcf
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);opacity:0;background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:60;transition:all .25s;font-weight:600;pointer-events:none;max-width:90%;text-align:center}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #help{position:fixed;left:10px;bottom:10px;z-index:9;font-size:12px;color:#fff;background:rgba(0,0,0,.35);padding:6px 10px;border-radius:10px}
-@media (max-width:820px){#help{display:none}#players{max-height:30vh;min-width:140px;font-size:13px}}
-</style>
+@media (max-width:820px),(max-height:520px){
+  #help{display:none}
+  .chip{padding:6px 10px;font-size:13px}
+  #roomchip b{font-size:14px}
+  #players{top:54px!important;max-height:22vh;min-width:0;max-width:46vw;font-size:12px}
+  #players .p{padding:1px 0}
+  .btn.small{padding:6px 10px;font-size:13px}
+  .stopbtn{font-size:24px;padding:10px}
+  .sheethead{margin-bottom:6px}
+}
+@media (max-height:520px) and (orientation:landscape){#players{top:48px!important;max-height:40vh;max-width:30vw}}</style>
 </head>
 <body>
 <canvas id="world"></canvas>
@@ -244,7 +282,7 @@ function enter(){
   me.name=n;room=r;store.set('estope-name',n);store.set('estope-shirt',me.shirt);store.set('estope-skin',me.skin);
   history.replaceState(null,'','?sala='+room);
   beep(880,.05);
-  $('#join').hidden=true;$('#hud').hidden=false;$('#roomName').textContent=room;
+  $('#join').hidden=true;$('#hud').hidden=false;requestAnimationFrame(()=>resize());$('#roomName').textContent=room;
   spawn();connect();renderAll();
 }
 
@@ -277,14 +315,38 @@ addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 addEventListener('blur',()=>keys.clear());
 const cv=$('#world'),ctx=cv.getContext('2d');
 let view={s:1,ox:0,oy:0};
-function resize(){const dpr=Math.min(2,devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;
-  const s=Math.min(innerWidth/W,innerHeight/H)*1.0;view={s:s*dpr,ox:(innerWidth-W*s)/2*dpr,oy:(innerHeight-H*s)/2*dpr,dpr}}
-addEventListener('resize',resize);resize();
+function resize(){const dpr=Math.min(2,devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;view.dpr=dpr;updateView(true)}
+/* Câmera: encaixa a sala na área livre (fora do painel). Em tela pequena, dá zoom e segue o boneco. */
+let cam=null;
+function freeArea(){
+  let x=0,y=0,w=innerWidth,h=innerHeight;const p=$('#panel');
+  if(p&&!$('#hud').hidden){const r=p.getBoundingClientRect();
+    if(r.width>=innerWidth*.9){if(r.top<h)h=Math.max(120,r.top)}       // gaveta embaixo
+    else if(r.left<w)w=Math.max(160,r.left-6)}                            // painel na lateral
+  return {x,y,w,h};
+}
+function updateView(snap){
+  const dpr=view.dpr||1,a=freeArea();
+  const fit=Math.min(a.w/W,a.h/H);
+  const small=Math.min(innerWidth,innerHeight)<=520;
+  const s=small?Math.max(fit,Math.min(.62,Math.max(a.w,a.h)/700)):fit;
+  const axis=(free,off,size,p)=>{const len=size*s;if(len<=free)return off+(free-len)/2;
+    const want=off+free/2-p*s;return Math.min(off,Math.max(off+free-len,want))};
+  const tx=axis(a.w,a.x,W,pos?.x??W/2),ty=axis(a.h,a.y,H,pos?.y??H/2);
+  if(!cam||snap)cam={x:tx,y:ty,s};else{const k=.18;cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k;cam.s+=(s-cam.s)*k}
+  view={s:cam.s*dpr,ox:cam.x*dpr,oy:cam.y*dpr,dpr};
+}
+function goToWheel(){const a=Math.atan2(pos.y-WHEEL.y,pos.x-WHEEL.x);target={x:WHEEL.x+Math.cos(a)*(WHEEL.r+48),y:WHEEL.y+Math.sin(a)*(WHEEL.r+48),spin:true}}
+addEventListener('resize',resize);visualViewport?.addEventListener('resize',()=>{resize();fitKeyboard()});
+function fitKeyboard(){const v=visualViewport;if(!v)return;const kb=Math.max(0,innerHeight-v.height-v.offsetTop);
+  document.documentElement.style.setProperty('--kb',(kb>60?kb:0)+'px');
+  if(kb>60){const f=document.activeElement;if(f&&f.closest&&f.closest('#panel'))setTimeout(()=>f.scrollIntoView({block:'center'}),50)}}
+resize();
 cv.addEventListener('pointerdown',e=>{
   if($('#hud').hidden)return;
   const x=(e.clientX*view.dpr-view.ox)/view.s,y=(e.clientY*view.dpr-view.oy)/view.s;
   if(Math.hypot(x-WHEEL.x,y-WHEEL.y)<WHEEL.r+20){ if(nearWheel()){trySpin();return}
-    const a=Math.atan2(pos.y-WHEEL.y,pos.x-WHEEL.x);target={x:WHEEL.x+Math.cos(a)*(WHEEL.r+48),y:WHEEL.y+Math.sin(a)*(WHEEL.r+48),spin:true};return}
+    goToWheel();return}
   target={x,y};
 });
 const nearWheel=()=>Math.hypot(pos.x-WHEEL.x,pos.y-WHEEL.y)<WHEEL.r+22+AR+40;
@@ -387,7 +449,7 @@ function drawBig(){
 }
 let lastT=performance.now();
 function loop(t){const dt=Math.min(.05,(t-lastT)/1000);lastT=t;
-  if(!$('#hud').hidden){step(dt);
+  if(!$('#hud').hidden){step(dt);updateView(false);
     if(spinAnim){const k=Math.min(1,(t-spinAnim.start)/spinAnim.dur);const e=1-Math.pow(1-k,4);wheelRot=spinAnim.from+(spinAnim.to-spinAnim.from)*e;
       const n=spinAnim.n,segI=Math.floor(((wheelRot%(Math.PI*2))+Math.PI*2)/(Math.PI*2/n));if(segI!==lastTickSeg){lastTickSeg=segI;beep(1200,.02,'square',.025)}
       drawBig();
@@ -585,7 +647,7 @@ function computePoints(rv,cfg){
 /* ================= CLIENT UI ================= */
 let lastSpinId=null,myAnswers={},answersRound=null,sendT=null,playStartLocal=0,stopLocalAt=0,locked=false,panelKey='';
 function act(type,data={}){if(amHost())handleAction(myId,type,data);else send('act',{from:myId,type,data})}
-function trySpin(){if(state?.phase==='spin'&&state.spinner===myId){if(nearWheel())act('spin');else toast('Chegue mais perto da roleta 🎡')}}
+function trySpin(){if(state?.phase==='spin'&&state.spinner===myId){if(nearWheel())act('spin');else goToWheel()}}
 function onStateChange(prev){
   const p=prev?.phase,ph=state.phase;
   if(ph==='spinning'&&state.spin&&state.spin.id!==lastSpinId){lastSpinId=state.spin.id;
@@ -619,14 +681,18 @@ function renderBanner(){
   const b=$('#banner');b.innerHTML='';if(!state){b.textContent='Conectando…';return}
   const ph=state.phase,R=`Rodada ${state.round}/${state.config.rounds}`;
   if(ph==='lobby')b.append(el('span',{class:'big',text:'Sala de espera'}),amHost()?'Configure os temas e clique em Começar':`Aguardando ${nameOf(hostId)} começar o jogo`);
-  else if(ph==='spin')b.append(el('span',{class:'big',text:state.spinner===myId?'🎡 Sua vez! Vá até a roleta':`🎡 Vez de ${nameOf(state.spinner)} girar`}),state.spinner===myId?'Ande até a roleta e aperte ESPAÇO (ou toque nela)':R);
+  else if(ph==='spin')b.append(el('span',{class:'big',text:state.spinner===myId?'🎡 Sua vez! Vá até a roleta':`🎡 Vez de ${nameOf(state.spinner)} girar`}),state.spinner===myId?(TOUCH?'Toque na roleta para ir até ela e girar':'Ande até a roleta e aperte ESPAÇO (ou clique nela)'):R);
   else if(ph==='spinning')b.append(el('span',{class:'big',text:'Girando…'}),R);
   else if(ph==='play')b.append(el('span',{class:'big',text:`Letra ${state.letter}!`}),R+' · preencha sua planilha');
   else if(ph==='stopping')b.append(el('span',{class:'big',text:state.stopBy?`✋ ESTOPE de ${nameOf(state.stopBy)}!`:'⏰ Tempo esgotado!'}),'Larguem as canetas!');
   else if(ph==='review')b.append(el('span',{class:'big',text:'Conferência'}),'Votem nas palavras suspeitas');
   else if(ph==='scores')b.append(el('span',{class:'big',text:'Placar'}),R);
   else if(ph==='end')b.append(el('span',{class:'big',text:'🏆 Fim de jogo!'}),`Vencedor: ${winner()}`);
+  // em tela pequena o banner aparece só por alguns segundos a cada mudança, para não cobrir a sala
+  const k=b.textContent;if(k!==bannerKey){bannerKey=k;b.classList.remove('fade');clearTimeout(bannerT);bannerT=setTimeout(()=>b.classList.add('fade'),4000)}
 }
+let bannerKey='',bannerT=null;
+const TOUCH=matchMedia('(pointer:coarse)').matches;
 function winner(){const ps=Object.values(state.players).sort((a,b)=>b.score-a.score);return ps[0]?ps[0].name:'-'}
 function setMin(v){$('#panel').classList.toggle('min',v);$('#mintoggle').textContent=v?'▴ Abrir':'▾';measurePanel()}
 $('#mintoggle').onclick=()=>setMin(!$('#panel').classList.contains('min'));
@@ -692,7 +758,7 @@ function spinView(){
   if(state.phase==='spinning'){f.append(el('h3',{text:'A roleta está girando…'}),el('p',{class:'muted',text:'Prepare a caneta! ✍️'}));return f}
   const mine=state.spinner===myId;
   f.append(el('h3',{text:mine?'Sua vez de sortear a letra!':`${nameOf(state.spinner)} vai sortear a letra`}));
-  f.append(el('p',{class:'muted',text:mine?'Ande com WASD ou as setas até a roleta no meio da sala e aperte ESPAÇO. No celular, toque na roleta.':'Enquanto isso, passeie pela sala 🙂'}));
+  f.append(el('p',{class:'muted',text:mine?(TOUCH?'Toque na roleta (ou no botão abaixo): seu boneco vai até ela e gira.':'Ande com WASD ou as setas até a roleta no meio da sala e aperte ESPAÇO, ou use o botão abaixo.'):'Enquanto isso, passeie pela sala 🙂'}));
   if(mine)f.append(el('button',{class:'btn wide',id:'spinBtn',text:'🎡 Girar roleta',onclick:()=>trySpin()}));
   if(amHost()&&!mine)f.append(el('button',{class:'btn ghost small',style:'margin-top:10px',text:'Girar no lugar dele(a)',onclick:()=>act('spin')}));
   if(state.used.length)f.append(el('p',{class:'muted',style:'margin-top:14px',text:'Letras já sorteadas: '+state.used.join(' ')}));
@@ -729,7 +795,7 @@ function tickUi(){
   if(!state)return;
   if(state.phase==='play'&&state.playDur){const t=$('#timer');if(t){const r=Math.max(0,Math.ceil(state.playDur-(Date.now()-playStartLocal)/1000));t.textContent=`${Math.floor(r/60)}:${String(r%60).padStart(2,'0')}`;t.classList.toggle('low',r<=10)}}
   if(state.phase==='stopping')updateSheet();
-  const sb=$('#spinBtn');if(sb){const n=nearWheel();sb.disabled=!n;sb.textContent=n?'🎡 Girar roleta!':'🚶 Chegue perto da roleta'}
+  const sb=$('#spinBtn');if(sb){const n=nearWheel(),t=n?'🎡 Girar roleta!':(target?.spin?'🚶 Indo até a roleta…':'🚶 Ir até a roleta e girar');sb.disabled=false;if(sb.textContent!==t)sb.textContent=t}
 }
 function reviewView(){
   const rv=state.review,f=el('div');if(!rv)return f;
