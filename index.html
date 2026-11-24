@@ -365,7 +365,7 @@ cv.addEventListener('pointerdown',e=>{
 });
 const nearWheel=()=>Math.hypot(pos.x-WHEEL.x,pos.y-WHEEL.y)<WHEEL.r+22+AR+40;
 
-let lastSent=0,lastSentPos='';
+let lastSent=0,lastSentPos='',wasMoving=false;
 function step(dt){
   let vx=0,vy=0;
   if(keys.has('arrowleft')||keys.has('a'))vx--;if(keys.has('arrowright')||keys.has('d'))vx++;
@@ -377,9 +377,16 @@ function step(dt){
     let moved=false;if(!hitsAt(nx,pos.y)){pos.x=nx;moved=true}if(!hitsAt(pos.x,ny)){pos.y=ny;moved=true}
     if(!moved&&target)target=null;
     if(Math.abs(vx)>.1)pos.dir=vx>0?1:-1;pos.walk+=dt*12}
-  for(const id in peers){const p=peers[id];const k=Math.min(1,dt*10);p.x+=(p.tx-p.x)*k;p.y+=(p.ty-p.y)*k;if(p.moving)p.walk+=dt*12}
+  // outros jogadores: andam em velocidade constante até a última posição recebida (suave mesmo com poucas mensagens)
+  for(const id in peers){const p=peers[id];const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
+    if(d>320){p.x=p.tx;p.y=p.ty}                       // longe demais: teleporta
+    else if(d>0.5){const sp=Math.max(230,d*4)*dt;if(sp>=d){p.x=p.tx;p.y=p.ty}else{p.x+=dx/d*sp;p.y+=dy/d*sp}
+      if(Math.abs(dx)>1)p.dir=dx>0?1:-1}
+    p.anim=d>2||p.moving;if(p.anim)p.walk+=dt*12}
+  // envio da minha posição: 4x/s andando, na hora ao parar, e a cada 5s parado
   const now=performance.now(),key=Math.round(pos.x)+','+Math.round(pos.y)+','+pos.dir;
-  if((key!==lastSentPos&&now-lastSent>110)||now-lastSent>2000){lastSent=now;lastSentPos=key;sendPos()}
+  const stopped=!pos.moving&&wasMoving;wasMoving=pos.moving;
+  if((key!==lastSentPos&&(now-lastSent>250||stopped))||now-lastSent>5000){lastSent=now;lastSentPos=key;sendPos()}
 }
 function sendPos(){send('pos',{id:myId,x:Math.round(pos.x),y:Math.round(pos.y),d:pos.dir,m:pos.moving?1:0})}
 
@@ -442,7 +449,7 @@ function draw(){
   // avatars
   const list=[];
   const pres=presence;
-  for(const id in peers){if(!pres[id])continue;const pm=pres[id];list.push({id,x:peers[id].x,y:peers[id].y,dir:peers[id].dir,walk:peers[id].walk,moving:peers[id].moving,name:pm.name,shirt:pm.shirt,skin:pm.skin})}
+  for(const id in peers){if(!pres[id])continue;const pm=pres[id];list.push({id,x:peers[id].x,y:peers[id].y,dir:peers[id].dir,walk:peers[id].walk,moving:!!peers[id].anim,name:pm.name,shirt:pm.shirt,skin:pm.skin})}
   list.push({id:myId,x:pos.x,y:pos.y,dir:pos.dir,walk:pos.walk,moving:pos.moving,name:me.name,shirt:me.shirt,skin:me.skin});
   list.sort((a,b)=>a.y-b.y);
   for(const a of list){c.save();c.translate(a.x,a.y);drawAvatarShape(c,a);
@@ -486,7 +493,7 @@ function connect(){
   ch=sb.channel('estope-'+room,{config:{broadcast:{self:false},presence:{key:myId}}});
   ch.on('presence',{event:'sync'},onPresence);
   ch.on('broadcast',{event:'pos'},({payload:p})=>{if(!p||p.id===myId)return;const q=peers[p.id];
-    if(!q)peers[p.id]={x:p.x,y:p.y,tx:p.x,ty:p.y,dir:p.d,moving:!!p.m,walk:0};else{q.tx=p.x;q.ty=p.y;q.dir=p.d;q.moving=!!p.m}});
+    if(!q)peers[p.id]={x:p.x,y:p.y,tx:p.x,ty:p.y,dir:p.d,moving:!!p.m,walk:0};else{q.tx=p.x;q.ty=p.y;q.moving=!!p.m;if(Math.hypot(q.tx-q.x,q.ty-q.y)<2)q.dir=p.d}});
   ch.on('broadcast',{event:'state'},({payload})=>onState(payload));
   ch.on('broadcast',{event:'act'},({payload:p})=>{if(amHost()&&p&&p.from)handleAction(p.from,p.type,p.data||{})});
   ch.on('broadcast',{event:'hello'},()=>{sendPos();if(amHost())pushState(false)});
