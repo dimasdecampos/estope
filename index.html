@@ -532,6 +532,17 @@ table.mx{border-collapse:collapse;border-spacing:0}
 .flip::after{display:none!important}
 .page .action{transition:padding-bottom .25s ease-out}
 @media (prefers-reduced-motion:reduce){.page .action{transition:none}}
+
+/* ===== setinha: tem mais coisas abaixo ===== */
+.more{position:fixed;right:16px;z-index:40;width:44px;height:44px;display:grid;place-items:center;color:var(--ink);cursor:pointer;
+  background:#fff;border:2px solid var(--ink);border-radius:52% 46% 55% 44%/48% 55% 45% 52%;box-shadow:2px 3px 0 rgba(34,40,58,.25);
+  animation:nudge 1.4s ease-in-out infinite;transition:opacity .2s}
+.more:hover{background:var(--postit)}
+@keyframes nudge{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(5px) rotate(-4deg)}}
+@media (prefers-reduced-motion:reduce){.more{animation:none;transform:rotate(-4deg)}}
+.rules li{white-space:nowrap;overflow:hidden}
+.more{width:38px;height:38px;right:auto;left:50%;margin-left:-19px}
+.more svg{width:19px;height:23px}
 </style>
 </head>
 <body>
@@ -579,6 +590,7 @@ table.mx{border-collapse:collapse;border-spacing:0}
   </div>
 </div>
 
+<button id="more" class="more" hidden aria-label="Tem mais coisas abaixo. Rolar para baixo"><svg viewBox="0 0 28 34" width="22" height="27" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.2 3c-.6 4.5.8 8.2-.3 12.6-.8 3.6.4 7.3.1 11.6"/><path d="M6.5 20.2c2.6 2.4 5 5.1 7.6 9.4 2.2-4.1 4.8-7 7.6-9.6"/></svg></button>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script type="module">
@@ -942,8 +954,17 @@ function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$(
   const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
   const r=mod(vb-p.getBoundingClientRect().top);
   if(a.style.paddingBottom!==r+'px'){a.style.paddingBottom=r+'px';glideUntil=performance.now()+320;requestAnimationFrame(glide)}}
+function updateMore(){const m=$('#more');if(!m)return;
+  if($('#app').hidden){m.hidden=true;return}
+  const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
+  const left=document.documentElement.scrollHeight-(scrollY+innerHeight);
+  const a=$('#action');const at=a&&a.offsetHeight?a.getBoundingClientRect().top:vb;
+  m.hidden=left<24;m.style.bottom=Math.max(16,vb-at+10)+'px'}
+$('#more').addEventListener('click',()=>scrollBy({top:Math.round(innerHeight*.6),behavior:REDUCED?'auto':'smooth'}));
+addEventListener('scroll',()=>requestAnimationFrame(updateMore),{passive:true});addEventListener('resize',updateMore);
+new ResizeObserver(()=>requestAnimationFrame(updateMore)).observe(document.body);
 function syncRules(){cancelAnimationFrame(rulesRaf);rulesRaf=requestAnimationFrame(alignBg);clearTimeout(snapT);snapT=setTimeout(snapAction,140)}
-$('#action').addEventListener('transitionend',()=>{alignBg();setTimeout(alignBg,30)});
+$('#action').addEventListener('transitionend',()=>{alignBg();setTimeout(alignBg,30);updateMore()});
 addEventListener('scroll',syncRules,{passive:true});addEventListener('resize',syncRules);visualViewport?.addEventListener('resize',syncRules);
 function renderAction(){
   const A=$('#action');A.innerHTML='';if(!state)return;
@@ -970,7 +991,7 @@ function renderAction(){
     if(H)inn.append(el('div',{class:'two'},el('button',{class:'btn ghost',text:'Mudar temas',onclick:()=>act('lobby')}),el('button',{class:'btn',text:'Jogar de novo',onclick:()=>act('start')})));
     else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} decidir a próxima`}));
   }
-  A.append(inn);updateSheet();syncRules();
+  A.append(inn);updateSheet();syncRules();requestAnimationFrame(updateMore);
 }
 
 /* ---------- telas ---------- */
@@ -984,8 +1005,8 @@ function lobbyView(){
     f.append(el('section',{class:'block'},el('h2',{text:'Regras'}),el('ul',{class:'rules'},
       el('li',{},'Rodadas',el('b',{class:'num',text:c.rounds})),
       el('li',{},'Tempo por rodada',el('b',{text:c.time?fmtTime(c.time):'Sem limite'})),
-      el('li',{},'Quem pode dar ESTOPE',el('b',{text:c.rule==='all'?'Quem preencheu tudo':'Qualquer um'})),
-      el('li',{},'Letras fora do sorteio',el('b',{text:c.exclude||'Nenhuma'})),
+      el('li',{},'Quem dá ESTOPE',el('b',{text:c.rule==='all'?'Quem completou':'Qualquer um'})),
+      el('li',{},'Letras fora',el('b',{text:c.exclude||'Nenhuma'})),
       c.bonus?el('li',{},'Bônus',el('b',{text:'20 pts se só você acertou'})):null)));
     return f}
   const upd=patch=>act('config',{config:{...c,...patch}});
