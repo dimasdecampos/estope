@@ -530,6 +530,8 @@ table.mx{border-collapse:collapse;border-spacing:0}
 @keyframes pageshade{to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.flip{display:none}}
 .flip::after{display:none!important}
+.page .action{transition:padding-bottom .25s ease-out}
+@media (prefers-reduced-motion:reduce){.page .action{transition:none}}
 </style>
 </head>
 <body>
@@ -928,14 +930,20 @@ function renderStage(){
   const mx=S.querySelector('.mxwrap');if(mx)mx.scrollLeft=keepX;
 }
 
-/* A parte de ações fica presa no pé da tela; este ajuste faz ela sempre encaixar nas linhas da folha.
-   Completa o espaço embaixo até a próxima linha do caderno, assim o topo dela cai exatamente numa linha. */
-const LN=40;let rulesRaf=0;
-function syncRules(){cancelAnimationFrame(rulesRaf);rulesRaf=requestAnimationFrame(()=>{
-  const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden)return;
+/* A parte de ações fica presa no pé da tela.
+   - Durante a rolagem: só as linhas do fundo acompanham as do caderno (sem mexer no botão, nada pula).
+   - Quando a rolagem para: o botão desliza suave até ficar entre as linhas. */
+const LN=40;let rulesRaf=0,snapT=0,glideUntil=0;
+const mod=(n)=>((n%LN)+LN)%LN;
+function alignBg(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p)return;
+  a.style.backgroundPosition='0 '+mod(p.getBoundingClientRect().top-a.getBoundingClientRect().top)+'px'}
+function glide(){alignBg();if(performance.now()<glideUntil)requestAnimationFrame(glide)}
+function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden)return;
   const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
-  const r=((vb-p.getBoundingClientRect().top)%LN+LN)%LN;
-  a.style.paddingBottom=r+'px'})}
+  const r=mod(vb-p.getBoundingClientRect().top);
+  if(a.style.paddingBottom!==r+'px'){a.style.paddingBottom=r+'px';glideUntil=performance.now()+320;requestAnimationFrame(glide)}}
+function syncRules(){cancelAnimationFrame(rulesRaf);rulesRaf=requestAnimationFrame(alignBg);clearTimeout(snapT);snapT=setTimeout(snapAction,140)}
+$('#action').addEventListener('transitionend',()=>{alignBg();setTimeout(alignBg,30)});
 addEventListener('scroll',syncRules,{passive:true});addEventListener('resize',syncRules);visualViewport?.addEventListener('resize',syncRules);
 function renderAction(){
   const A=$('#action');A.innerHTML='';if(!state)return;
