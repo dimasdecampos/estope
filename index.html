@@ -346,6 +346,22 @@ body{font-size:19px}
 .page h1,.page h2,.page p{padding-left:0;text-indent:0}
 .wordmark{padding-left:0!important;margin-left:-2px}
 .btn.ghost.small,.row .btn{flex:none}
+/* ===== cabeçalho da planilha: letra circulada à mão, duas linhas da pauta ===== */
+.sheethead{display:grid;grid-template-columns:72px minmax(0,1fr) auto;grid-template-rows:var(--ln) var(--ln);column-gap:10px;align-items:center;height:calc(var(--ln) * 2)}
+.lettertile{grid-row:1/3;justify-self:start;position:relative;width:68px;height:68px;display:grid;place-items:center;background:none;border:0;border-radius:0;transform:none;
+  font-family:var(--hand);font-size:54px;line-height:1;color:var(--redpen)}
+.lettertile::before{content:"";position:absolute;inset:2px;border:2.8px solid var(--redpen);border-radius:52% 46% 55% 44%/48% 55% 45% 52%;transform:rotate(-9deg)}
+.lettertile::after{content:"";position:absolute;inset:5px 1px 0 4px;border:1.8px solid rgba(211,53,43,.55);border-radius:46% 55% 44% 52%/55% 45% 52% 48%;transform:rotate(7deg)}
+.sheethead>div:nth-child(2){grid-row:1/3;display:grid;grid-template-rows:var(--ln) var(--ln);min-width:0}
+.sheethead .t{line-height:var(--ln);font-size:30px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheethead .sub{line-height:var(--ln)!important;font-size:19px;color:var(--pencil)}
+.sheethead .timer{grid-row:1;align-self:center}
+.sheethead .timer{grid-row:1;align-self:center;height:var(--ln);line-height:var(--ln);padding:0 2px;background:none;box-shadow:none;transform:none;font-family:var(--hand);font-size:28px;color:var(--ink)}
+.sheethead .timer::before{content:"⏱ ";font-size:20px}
+.sheethead .timer.low{background:linear-gradient(to top,rgba(255,228,107,.9) 0 45%,transparent 45%);color:var(--redpen)}
+.sheethead .t{font-size:28px}
+.sheethead{grid-template-columns:72px minmax(0,1fr);position:relative}
+.sheethead .timer{position:absolute;right:0;bottom:0}
 </style>
 </head>
 <body>
