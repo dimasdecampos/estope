@@ -543,6 +543,13 @@ table.mx{border-collapse:collapse;border-spacing:0}
 .rules li{white-space:nowrap;overflow:hidden}
 .more{width:38px;height:38px;right:auto;left:50%;margin-left:-19px}
 .more svg{width:19px;height:23px}
+
+/* exemplos a lápis nos espaços em branco */
+.ex{display:inline-flex;align-items:baseline;gap:4px;min-width:0;color:#8C97AA;font-family:var(--hand)}
+.ex .exl{font-size:15px}
+.ex .exw{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .22s,transform .22s}
+.ex .exw.out{opacity:0;transform:translateY(-6px)}
+@media (prefers-reduced-motion:reduce){.ex .exw{transition:none}}
 </style>
 </head>
 <body>
@@ -1079,6 +1086,14 @@ function updateSheet(){
   if(msg){msg.hidden=state.phase!=='stopping';
     if(state.phase==='stopping'){const s=Math.max(0,Math.ceil((stopLocalAt-Date.now())/1000));msg.textContent=(state.stopBy?`ESTOPE de ${nameOf(state.stopBy)}! `:'Acabou o tempo! ')+(s>0?`Canetas no chão em ${s}…`:'Conferindo as respostas…')}}
 }
+
+/* ===== exemplos para os espaços em branco da correção ===== */
+const EXAMPLES={"nome":"A:Ana,Alice,Arthur|B:Bruno,Beatriz,Bernardo|C:Carla,Caio,Clara|D:Daniel,Davi,Débora|E:Eduardo,Elisa,Enzo|F:Fernanda,Felipe,Flávia|G:Gabriel,Giovana,Gustavo|H:Helena,Heitor,Hugo|I:Isabela,Igor,Ingrid|J:João,Júlia,Joana|K:Kátia,Kevin|L:Lucas,Laura,Luana|M:Maria,Miguel,Marina|N:Natália,Nicolas,Nina|O:Otávio,Olívia,Oscar|P:Pedro,Paula,Pietro|Q:Quitéria,Quirino|R:Rafael,Renata,Rodrigo|S:Sofia,Samuel,Sara|T:Tiago,Tânia,Theo|U:Ulisses,Úrsula|V:Vitória,Vinícius,Valentina|W:Wagner,Wanda|X:Xavier,Xuxa|Y:Yasmin,Yuri|Z:Zeca,Zilda,Zoe","cep cidade estado pais":"A:Aracaju,Alemanha,Amapá|B:Bahia,Brasil,Belém|C:Curitiba,Chile,Ceará|D:Dinamarca,Diadema|E:Espanha,Egito,Espírito Santo|F:França,Fortaleza,Florianópolis|G:Goiás,Grécia,Guarulhos|H:Holanda,Honduras,Hungria|I:Itália,Índia,Itajubá|J:Japão,Jundiaí,João Pessoa|K:Kuwait,Kiev|L:Londres,Lisboa,Londrina|M:Maceió,México,Manaus|N:Natal,Noruega,Niterói|O:Olinda,Osasco,Ouro Preto|P:Paraná,Portugal,Paris|Q:Quênia,Quixadá|R:Recife,Rússia,Roma|S:Salvador,Suíça,Santos|T:Tocantins,Tóquio,Taubaté|U:Uruguai,Ubatuba,Ucrânia|V:Venezuela,Vitória,Veneza|W:Washington|X:Xangai,Xique-Xique|Y:Yokohama|Z:Zâmbia,Zurique","animal":"A:Abelha,Arara,Águia|B:Baleia,Burro,Besouro|C:Cachorro,Cavalo,Camelo|D:Dromedário,Doninha|E:Elefante,Ema,Esquilo|F:Foca,Formiga,Flamingo|G:Gato,Girafa,Galinha|H:Hipopótamo,Hiena|I:Iguana|J:Jacaré,Jabuti,Joaninha|K:Koala|L:Leão,Lobo,Lagarto|M:Macaco,Morcego,Minhoca|N:Naja,Narval|O:Onça,Ovelha,Orca|P:Pato,Pinguim,Porco|Q:Quati|R:Rato,Raposa,Rinoceronte|S:Sapo,Sabiá,Siri|T:Tatu,Tigre,Tucano|U:Urso,Urubu|V:Vaca,Veado|X:Xexéu|Y:Yak|Z:Zebra,Zangão","fruta verdura ou legume":"A:Abacaxi,Alface,Abóbora|B:Banana,Batata,Brócolis|C:Caju,Cenoura,Couve|D:Damasco|E:Espinafre,Ervilha|F:Figo,Feijão|G:Goiaba,Graviola|H:Hortelã|I:Inhame|J:Jabuticaba,Jaca,Jiló|K:Kiwi|L:Limão,Laranja,Lichia|M:Manga,Maçã,Mandioca|N:Nabo,Nectarina|O:Orégano|P:Pera,Pepino,Pêssego|Q:Quiabo|R:Rabanete,Romã,Repolho|S:Salsa,Siriguela|T:Tomate,Tangerina|U:Uva,Umbu|V:Vagem|X:Xuxu|Z:Zimbro","cor":"A:Azul,Amarelo|B:Branco,Bege|C:Cinza,Ciano|D:Dourado|E:Esmeralda|F:Fúcsia|G:Grená|I:Índigo|J:Jade|K:Kaki|L:Lilás,Laranja|M:Marrom,Magenta|N:Nude|O:Ocre,Ouro|P:Preto,Prata|R:Rosa,Roxo|S:Salmão|T:Turquesa,Terracota|U:Uva|V:Verde,Vermelho,Violeta|Z:Zinco","objeto":"A:Agulha,Anel|B:Bola,Balde|C:Caneta,Cadeira|D:Dado,Dedal|E:Escova,Espelho|F:Faca,Fogão|G:Garfo,Garrafa|H:Hidrante|I:Isqueiro,Ímã|J:Janela,Jarra|K:Kit|L:Lápis,Livro|M:Mesa,Martelo|N:Navalha|O:Óculos|P:Panela,Pente|Q:Quadro|R:Régua,Relógio|S:Sofá,Sapato|T:Tesoura,Travesseiro|U:Urna|V:Vaso,Vassoura|X:Xícara|Z:Zíper","profissao":"A:Advogado,Arquiteto|B:Bombeiro,Bancário|C:Cozinheiro,Carteiro|D:Dentista|E:Engenheiro,Enfermeiro|F:Fotógrafo,Farmacêutico|G:Garçom,Gari|H:Historiador|I:Instrutor|J:Jornalista,Juiz|L:Lavrador,Locutor|M:Médico,Motorista|N:Nutricionista|O:Oculista|P:Professor,Padeiro|Q:Químico|R:Repórter|S:Sapateiro,Secretário|T:Taxista,Técnico|U:Urbanista|V:Veterinário,Vendedor|X:Xerife|Z:Zelador,Zootecnista","marca":"A:Adidas,Apple|B:Brastemp|C:Coca-Cola,Casas Bahia|D:Danone|E:Elma Chips|F:Fiat,Ford|G:Google|H:Honda,Havaianas|I:Ipiranga|J:Jeep|K:Kibon|L:Lacoste,Lego|M:Mercedes|N:Nike,Nestlé|O:Omo|P:Puma,Pepsi|Q:Quaker|R:Ray-Ban|S:Samsung,Sadia|T:Toyota,Tramontina|U:Uber|V:Volkswagen,Volvo|W:Whirlpool|X:Xerox|Y:Yakult|Z:Zara"};
+function examplesFor(cat,letter){const raw=EXAMPLES[norm(cat)];if(!raw)return[];
+  const part=raw.split('|').find(p=>p[0]===letter);return part?part.slice(2).split(','):[]}
+let exI=0;setInterval(()=>{const els=document.querySelectorAll('.ex[data-ex]');if(!els.length)return;exI++;
+  els.forEach(e=>{const l=e.dataset.ex.split(',');const t=e.querySelector('.exw');if(!t)return;t.classList.add('out');
+    setTimeout(()=>{t.textContent=l[exI%l.length];t.classList.remove('out')},220)})},1800);
 function reviewView(){
   const rv=state.review,f=el('div');if(!rv)return f;
   const res=computePoints(rv,state.config);
@@ -1096,7 +1111,8 @@ function reviewView(){
     const tr=el('tr',{},el('th',{class:'cat',scope:'row',title:cat},el('span',{class:'cl',text:cat})));
     for(const pid of rv.order){const c=rv.rows[pid][cat],s=res.cell[pid][cat];
       // célula em 3 colunas fixas: palavra | pontos | votos — assim os pontos ficam alinhados e o total cai embaixo deles
-      const wb=el('span',{class:'wb'},el('span',{class:'w',title:c.w||'',text:c.w||'—'}));
+      const exs=!c.w?examplesFor(cat,rv.letter):[];
+      const wb=el('span',{class:'wb'},exs.length?el('span',{class:'ex','data-ex':exs.join(','),title:'Exemplos: '+exs.join(', ')},el('span',{class:'exl',text:'ex.'}),el('span',{class:'exw',text:exs[exI%exs.length]})):el('span',{class:'w',title:c.w||'',text:c.w||'—'}));
       if(s.shared>1)wb.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
       if(s.why){const dic=s.why==='fora do dicionário';wb.append(el('span',{class:'badge'+(dic?' q':' x'),title:s.why,text:dic?'?':s.why==='verificando…'?'…':'!'}))}
       const pts=el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts});
