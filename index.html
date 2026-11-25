@@ -436,6 +436,53 @@ table.mx{border-collapse:collapse;border-spacing:0}
   .mx .pts{width:30px;height:28px;font-size:17px}
   .mx .badge{min-width:20px;padding:0 3px}
 }
+
+/* votos: ✓ e ✗ sempre visíveis, esmaecidos; o escolhido fica forte e grifado */
+.vpair{display:inline-flex;gap:2px;flex:none}
+.vm{width:24px;height:30px;padding:0;display:grid;place-items:center;font-family:var(--hand);font-size:25px;line-height:1;border-radius:4px;opacity:.28;transition:opacity .12s,transform .12s}
+.vm.ok{color:var(--okpen)}
+.vm.no{color:var(--redpen)}
+.vm:hover{opacity:.6}
+.vm.on{opacity:1;transform:scale(1.15) rotate(-6deg)}
+.vm.ok.on{background:radial-gradient(ellipse 60% 45% at 50% 62%,rgba(30,138,74,.2) 0 98%,transparent 100%)}
+.vm.no.on{background:radial-gradient(ellipse 60% 45% at 50% 62%,rgba(211,53,43,.18) 0 98%,transparent 100%)}
+@media (max-width:520px){
+  .mx .ln{gap:3px}
+  .mx td.cell{padding:0 4px}
+  .mx .ln .w{max-width:70px}
+  .mx .pts{width:28px;height:27px;font-size:16px}
+}
+
+/* pontos numa coluna alinhada, total embaixo deles */
+.mx .ln{display:grid!important;grid-template-columns:minmax(0,1fr) 30px 52px;column-gap:4px;align-items:center;height:var(--ln)}
+.mx .wb{display:flex;align-items:center;gap:3px;min-width:0}
+.mx .wb .w{min-width:0;max-width:none!important;overflow:hidden;text-overflow:ellipsis}
+.mx .ln .pts{margin:0;justify-self:center}
+.mx .vpair{justify-self:start}
+.mx .vcount{font-size:14px;gap:1px}
+.mx .vcount .mark{font-size:17px}
+.mx td.cell{min-width:178px}
+.mx tfoot td.tot{padding:0 4px}
+.mx .totn{justify-self:center;font-family:var(--hand);font-size:28px;line-height:1!important;color:var(--redpen);border-top:2px solid var(--redpen);padding-top:2px;min-width:30px;text-align:center}
+@media (min-width:700px){.mx td.cell{min-width:230px}.mx .ln{grid-template-columns:minmax(0,1fr) 32px 56px}}
+
+/* ===== placar = boletim ===== */
+.sb thead th{font-family:var(--hand)}
+.sb .cat{width:136px;min-width:136px;max-width:136px}
+.sb .pl2{display:flex;align-items:center;gap:6px;min-width:0}
+.sb .pos{width:16px;flex:none;font-family:var(--hand);font-size:22px;color:var(--pencil)}
+.sb tbody tr:first-child .pos{color:var(--star)}
+.sb .nm{font-family:var(--hand);font-size:22px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sb tr.me .nm{background:linear-gradient(to top,rgba(255,228,107,.85) 0 45%,transparent 45%)}
+.sb tbody tr{height:var(--ln)}
+.sb th.rd,.sb td.rd{width:46px;min-width:46px;text-align:center;padding:0 2px;border-left:1.5px solid rgba(90,98,112,.3)}
+.sb th.rd .rl{font-size:24px;color:var(--pen)}
+.sb th.rd small{font-family:var(--hand);font-size:13px;color:var(--pencil);margin-left:1px;vertical-align:super}
+.sb td.rd{font-family:var(--hand);font-size:23px;color:var(--pen)}
+.sb td.rd.none{color:#B9C4D4}
+.sb th.tt,.sb td.tt{min-width:62px;text-align:center;padding:0 6px;border-left:2.5px double var(--redpen)}
+.sb th.tt{color:var(--redpen);font-size:22px}
+.sb td.tt{font-family:var(--hand);font-size:30px;color:var(--redpen)}
 </style>
 </head>
 <body>
@@ -644,7 +691,7 @@ function rearmTimers(){
 }
 function wheelLetters(cfg){const ex=new Set((cfg?.exclude||'').toUpperCase().replace(/[^A-Z]/g,'').split(''));const l=ALPHA.filter(x=>!ex.has(x));return l.length?l:ALPHA}
 function sanitizeAnswers(a){const o={};if(!a||typeof a!=='object')return o;for(const c of state.config.cats){const v=a[c];if(typeof v==='string')o[c]=v.slice(0,40)}return o}
-function resetGame(){for(const id in state.players)state.players[id].score=0;state.round=0;state.used=[];state.turn=-1;state.last=null;state.review=null;state.spin=null;state.letter=null;state.stopBy=null;state.game=(state.game||0)+1}
+function resetGame(){for(const id in state.players)state.players[id].score=0;state.round=0;state.used=[];state.turn=-1;state.last=null;state.review=null;state.spin=null;state.letter=null;state.stopBy=null;state.game=(state.game||0)+1;state.history=[]}
 function handleAction(from,type,d){
   if(!state)return;const H=from===myId;
   switch(type){
@@ -675,7 +722,7 @@ function handleAction(from,type,d){
   case 'confirm': if(!H||state.phase!=='review')return;{
       const res=computePoints(state.review,state.config);
       for(const pid in res.total){if(!state.players[pid])state.players[pid]={name:state.review.names[pid]||'?',shirt:'#4A5163',skin:SKINS[0],score:0,joinedAt:Date.now()};state.players[pid].score+=res.total[pid]}
-      state.last={round:state.round,letter:state.letter,gain:res.total};
+      state.last={round:state.round,letter:state.letter,gain:res.total};state.history=[...(state.history||[]),{round:state.round,letter:state.letter,gain:res.total}];
       state.phase=state.round>=state.config.rounds?'end':'scores';pushState();}break;
   case 'next': if(!H||state.phase!=='scores')return;nextTurn();break;
   case 'restart': if(!H||state.phase==='lobby')return;
@@ -937,7 +984,7 @@ function reviewView(){
   const rv=state.review,f=el('div');if(!rv)return f;
   const res=computePoints(rv,state.config);
   f.append(el('h1',{text:`Correção da letra ${rv.letter}`}),
-    el('p',{class:'muted',text:'Toque no quadradinho para votar.'}),
+    el('p',{class:'muted',text:'Toque em ✓ ou ✗ nas palavras dos outros.'}),
     el('p',{class:'legend'},el('span',{class:'lg'},el('span',{class:'mark ok',text:'✓'}),'vale'),el('span',{class:'lg'},el('span',{class:'mark no',text:'✗'}),'não vale'),
       el('span',{class:'lg'},el('span',{class:'badge',text:'×2'}),'repetida'),el('span',{class:'lg'},el('span',{class:'badge q',text:'?'}),'fora do dicionário')));
   if(!rv.dictDone)f.append(el('p',{},el('span',{class:'note',text:'Verificando palavras no dicionário…'})));
@@ -949,30 +996,41 @@ function reviewView(){
   for(const cat of rv.cats){
     const tr=el('tr',{},el('th',{class:'cat',scope:'row',title:cat},el('span',{class:'cl',text:cat})));
     for(const pid of rv.order){const c=rv.rows[pid][cat],s=res.cell[pid][cat];
-      const line=el('div',{class:'ln'},el('span',{class:'w',title:c.w||'',text:c.w||'—'}));
-      if(s.shared>1)line.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
-      if(s.why){const dic=s.why==='fora do dicionário';line.append(el('span',{class:'badge'+(dic?' q':' x'),title:s.why,text:dic?'?':s.why==='verificando…'?'…':'!'}))}
-      line.append(el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts}));
+      // célula em 3 colunas fixas: palavra | pontos | votos — assim os pontos ficam alinhados e o total cai embaixo deles
+      const wb=el('span',{class:'wb'},el('span',{class:'w',title:c.w||'',text:c.w||'—'}));
+      if(s.shared>1)wb.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
+      if(s.why){const dic=s.why==='fora do dicionário';wb.append(el('span',{class:'badge'+(dic?' q':' x'),title:s.why,text:dic?'?':s.why==='verificando…'?'…':'!'}))}
+      const pts=el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts});
+      let vs=el('span',{class:'vpair'});
       if(!s.fixed&&pid!==myId){const mv=(rv.votes[pid+'|'+cat]||{})[myId];
-        const next=mv==='yes'?'no':mv==='no'?null:'yes';
-        line.append(el('button',{class:'vbox'+(mv==='yes'?' yes':mv==='no'?' no':''),
-          'aria-label':`Seu voto: ${mv==='yes'?'vale':mv==='no'?'não vale':'sem voto'}. Tocar muda. Votos: ${s.y||0} vale, ${s.n||0} não vale`,
-          title:`✓ ${s.y||0}  ✗ ${s.n||0}`,onclick:()=>act('vote',{pid,cat,val:next})},
-          el('span',{class:'mark '+(mv==='yes'?'ok':'no'),text:mv==='yes'?'✓':mv==='no'?'✗':''})))}
-      else if(!s.fixed&&(s.y||s.n))line.append(el('span',{class:'vcount'},el('span',{class:'mark ok',text:'✓'}),String(s.y),' ',el('span',{class:'mark no',text:'✗'}),String(s.n)));
-      tr.append(el('td',{class:'cell'+(s.valid?'':' bad')+(pid===myId?' me':'')},line))}
+        vs.append(el('button',{class:'vm ok'+(mv==='yes'?' on':''),'aria-pressed':String(mv==='yes'),'aria-label':`Vale (${s.y||0} votos)`,title:`Vale (${s.y||0})`,onclick:()=>act('vote',{pid,cat,val:mv==='yes'?null:'yes'})},'✓'),
+          el('button',{class:'vm no'+(mv==='no'?' on':''),'aria-pressed':String(mv==='no'),'aria-label':`Não vale (${s.n||0} votos)`,title:`Não vale (${s.n||0})`,onclick:()=>act('vote',{pid,cat,val:mv==='no'?null:'no'})},'✗'))}
+      else if(!s.fixed&&(s.y||s.n))vs.append(el('span',{class:'vcount'},el('span',{class:'mark ok',text:'✓'}),String(s.y),el('span',{class:'mark no',text:'✗'}),String(s.n)));
+      tr.append(el('td',{class:'cell'+(s.valid?'':' bad')+(pid===myId?' me':'')},el('div',{class:'ln'},wb,pts,vs)))}
     tb.append(tr)}
-  tbl.append(tb,el('tfoot',{},el('tr',{},el('th',{class:'cat',scope:'row',text:'Total'}),rv.order.map(pid=>el('td',{class:'tot num'+(pid===myId?' me':''),text:res.total[pid]})))));
+  tbl.append(tb,el('tfoot',{},el('tr',{},el('th',{class:'cat',scope:'row',text:'Total'}),
+    rv.order.map(pid=>el('td',{class:'tot'+(pid===myId?' me':'')},el('div',{class:'ln'},el('span',{}),el('span',{class:'totn num',text:res.total[pid]}),el('span',{})))))));
   f.append(el('div',{class:'mxwrap'},tbl));
   return f;
 }
 function scoresView(){
   const f=el('div'),end=state.phase==='end';
-  const list=Object.entries(state.players).map(([id,p])=>({id,...p,gain:state.last?.gain?.[id]})).filter(p=>presence[p.id]||p.score>0).sort((a,b)=>b.score-a.score);
+  const hist=state.history||[];
+  const list=Object.entries(state.players).map(([id,p])=>({id,...p})).filter(p=>presence[p.id]||p.score>0).sort((a,b)=>b.score-a.score);
   if(end&&list[0])f.append(el('div',{class:'winner'},el('div',{class:'crown',text:'⭐'}),el('div',{class:'name',text:list[0].id===myId?'Você venceu!':list[0].name}),el('div',{class:'muted num',text:`${list[0].score} pontos`})));
-  else f.append(el('h1',{text:`Placar da rodada ${state.last?.round||state.round}`}),el('p',{class:'muted',text:state.last?`Letra ${state.last.letter}`:''}));
-  f.append(el('ol',{class:'rank'},list.map((p,i)=>el('li',{},el('span',{class:'pos num',text:i+1}),avatar(p.name,colorOf(p.id)),el('span',{class:'nm'+(p.id===myId?' me':''),text:p.name,title:p.id===myId?'Você':p.name}),
-    el('span',{class:'gain num',text:p.gain!=null&&!end?'+'+p.gain:''}),el('span',{class:'tot num',text:p.score})))));
+  else f.append(el('h1',{text:'Boletim'}),el('p',{class:'muted',text:`Depois da rodada ${state.last?.round||state.round} de ${state.config.rounds}`}));
+  const tbl=el('table',{class:'mx sb'});
+  tbl.append(el('thead',{},el('tr',{},el('th',{class:'cat',scope:'col',text:'Jogador'}),
+    hist.map(h=>el('th',{class:'rd',scope:'col',title:`Rodada ${h.round}, letra ${h.letter}`},el('span',{class:'rl',text:h.letter}),el('small',{text:h.round+'ª'}))),
+    el('th',{class:'tt',scope:'col',text:'Total'}))));
+  const tb=el('tbody');
+  list.forEach((p,i)=>{
+    tb.append(el('tr',{class:p.id===myId?'me':''},
+      el('th',{class:'cat',scope:'row'},el('span',{class:'pl2'},el('span',{class:'pos num',text:i+1}),avatar(p.name,colorOf(p.id)),el('span',{class:'nm',text:p.name}))),
+      hist.map(h=>{const g=h.gain?.[p.id];return el('td',{class:'rd num'+(g==null?' none':'')},g==null?'–':String(g))}),
+      el('td',{class:'tt num',text:p.score})))});
+  tbl.append(tb);
+  f.append(el('div',{class:'mxwrap'},tbl));
   return f;
 }
 
