@@ -616,6 +616,10 @@ table.mx{border-collapse:collapse;border-spacing:0}
   body.typing .page.sheet{min-height:0}
 }
 @media (max-width:820px){body.typing .page.sheet .stage{padding-bottom:calc(var(--ln) * 10)}}
+
+/* aviso sem botão: texto comum na pauta, sem fundo próprio */
+.page .action.plain{position:static;background:none;padding:0;transition:none}
+.page h2{height:var(--ln);overflow:visible}.page h2 small{line-height:1}
 </style>
 </head>
 <body>
@@ -1050,10 +1054,10 @@ function renderStage(){
    - Quando a rolagem para: o botão desliza suave até ficar entre as linhas. */
 const LN=40;let rulesRaf=0,snapT=0,glideUntil=0;
 const mod=(n)=>((n%LN)+LN)%LN;
-function alignBg(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p)return;
+function alignBg(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||a.classList.contains('plain'))return;
   a.style.backgroundPosition='0 '+mod(p.getBoundingClientRect().top-a.getBoundingClientRect().top)+'px'}
 function glide(){alignBg();if(performance.now()<glideUntil)requestAnimationFrame(glide)}
-function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden)return;
+function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden||a.classList.contains('plain'))return;
   const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
   const r=mod(vb-p.getBoundingClientRect().top);
   if(a.style.paddingBottom!==r+'px'){a.style.paddingBottom=r+'px';glideUntil=performance.now()+320;requestAnimationFrame(glide)}}
@@ -1101,6 +1105,8 @@ function renderAction(){
     if(H)inn.append(el('div',{class:'two'},el('button',{class:'btn ghost',text:'Mudar temas',onclick:()=>act('lobby')}),el('button',{class:'btn',text:'Jogar de novo',onclick:()=>act('start')})));
     else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} decidir a próxima`}));
   }
+  // só um aviso (sem botão): fica escrito direto na linha da folha, sem faixa presa embaixo
+  const plain=!inn.querySelector('button,.stopnote');A.classList.toggle('plain',plain);if(plain){A.style.paddingBottom='';A.style.backgroundPosition=''}
   A.append(inn);updateSheet();syncRules();requestAnimationFrame(updateMore);
 }
 
