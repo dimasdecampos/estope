@@ -371,6 +371,31 @@ body{font-size:19px}
 .private .fld input:not(:focus):not(:placeholder-shown)~.mask{display:block}
 .sheethead .eye{width:40px;padding:0;font-size:20px}
 .sheethead .t{padding-right:46px}
+
+/* ===== correção em matriz: temas nas linhas, jogadores nas colunas ===== */
+.mxwrap{overflow-x:auto;margin-bottom:var(--ln);scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.mxwrap::-webkit-scrollbar{display:none}
+table.mx{border-collapse:collapse;border-spacing:0}
+.mx th,.mx td{padding:0 8px;text-align:left;font-weight:400;vertical-align:middle}
+.mx thead th{height:var(--ln);white-space:nowrap;font-family:var(--hand);font-size:22px;color:var(--ink)}
+.mx thead th .av{display:inline-grid;vertical-align:middle;margin-right:5px;width:24px;height:24px;font-size:15px}
+.mx thead th.me .nm{background:linear-gradient(to top,rgba(255,228,107,.85) 0 45%,transparent 45%)}
+.mx .cat{position:sticky;left:0;z-index:2;width:92px;min-width:92px;max-width:92px;padding:0 6px 0 0;font-family:var(--hand);font-size:18px;line-height:1.1!important;color:var(--pencil);
+  background-color:#fff;background-image:repeating-linear-gradient(to bottom,transparent 0 calc(var(--ln) - 1.5px),var(--rule) calc(var(--ln) - 1.5px) var(--ln));box-shadow:2px 0 0 rgba(90,98,112,.45)}
+.mx thead .cat{color:var(--pencil);font-size:18px}
+.mx tbody tr{height:calc(var(--ln) * 2)}
+.mx td.cell{min-width:142px;border-left:1.5px solid rgba(90,98,112,.35)}
+.mx td.cell:nth-child(2){border-left:0}
+.mx .l1,.mx .l2{height:var(--ln);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.mx .w{font-family:var(--hand);font-size:24px;color:var(--pen);max-width:150px;overflow:hidden;text-overflow:ellipsis;line-height:1!important}
+.mx td.bad .w{text-decoration:line-through 2px var(--redpen);color:#8C97AA}
+.mx .pts{width:32px;height:30px;font-size:19px;justify-self:auto;flex:none}
+.mx td.bad .pts{opacity:.55}
+.mx .vote{min-width:34px;height:28px;padding:0 4px}
+.mx tfoot tr{height:var(--ln)}
+.mx tfoot td.tot{font-family:var(--hand);font-size:28px;color:var(--redpen);border-left:1.5px solid rgba(90,98,112,.35)}
+.mx tfoot td.tot:nth-child(2){border-left:0}
+.mx tfoot .cat{color:var(--ink);font-size:22px}
 </style>
 </head>
 <body>
@@ -746,13 +771,14 @@ function renderStage(){
   else if(ph==='spin'||ph==='spinning')key=ph+state.round+state.spinner+hostId+(state.spin?.id||'');
   else key=ph+state.round+hostId+Object.keys(presence).length+JSON.stringify(state.last);
   if(key===stageKey){updateSheet();return}stageKey=key;
-  const keep=window.scrollY;S.innerHTML='';
+  const keep=window.scrollY,keepX=S.querySelector('.mxwrap')?.scrollLeft||0;S.innerHTML='';
   if(ph==='lobby')S.append(lobbyView());
   else if(ph==='spin'||ph==='spinning')S.append(spinView());
   else if(ph==='play'||ph==='stopping'){S.append(sheetView());updateSheet()}
   else if(ph==='review')S.append(reviewView());
   else S.append(scoresView());
   if(ph==='review'||ph==='lobby')window.scrollTo(0,keep);
+  const mx=S.querySelector('.mxwrap');if(mx)mx.scrollLeft=keepX;
 }
 
 function renderAction(){
@@ -874,20 +900,26 @@ function reviewView(){
     el('p',{class:'muted',text:'Vote 👍 ou 👎 nas palavras dos outros.'}),
     el('p',{class:'legend'},el('span',{class:'lg'},el('span',{class:'badge',text:'×2'}),'repetida'),el('span',{class:'lg'},el('span',{class:'badge q',text:'?'}),'fora do dicionário')));
   if(!rv.dictDone)f.append(el('p',{},el('span',{class:'note',text:'Verificando palavras no dicionário…'})));
-  f.append(el('section',{class:'block'},el('h2',{text:'Total da rodada'}),el('ul',{class:'totals'},rv.order.map(pid=>el('li',{},(pid===myId?'Você':rv.names[pid]),el('b',{class:'num',text:res.total[pid]}))))));
+  // matriz: temas nas linhas, jogadores nas colunas
+  const tbl=el('table',{class:'mx'});
+  tbl.append(el('thead',{},el('tr',{},el('th',{class:'cat',scope:'col',text:'Tema'}),
+    rv.order.map(pid=>el('th',{scope:'col',class:pid===myId?'me':''},avatar(rv.names[pid],colorOf(pid)),el('span',{class:'nm',text:pid===myId?'Você':rv.names[pid]}))))));
+  const tb=el('tbody');
   for(const cat of rv.cats){
-    const ul=el('ul',{class:'rvlist'});
+    const tr=el('tr',{},el('th',{class:'cat',scope:'row',text:cat}));
     for(const pid of rv.order){const c=rv.rows[pid][cat],s=res.cell[pid][cat];
-      const word=el('span',{class:'wbox'},el('span',{class:'w',text:c.w||'—'}));
-      if(s.shared>1)word.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
-      if(s.why){const dic=s.why==='fora do dicionário';word.append(el('span',{class:'badge'+(dic?' q':' x'),title:s.why,text:dic?'?':s.why==='verificando…'?'…':'!'}))}
-      const votes=el('span',{class:'vt'});
+      const l1=el('div',{class:'l1'},el('span',{class:'w',text:c.w||'—'}));
+      if(s.shared>1)l1.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
+      if(s.why){const dic=s.why==='fora do dicionário';l1.append(el('span',{class:'badge'+(dic?' q':' x'),title:s.why,text:dic?'?':s.why==='verificando…'?'…':'!'}))}
+      const l2=el('div',{class:'l2'},el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts}));
       if(!s.fixed&&pid!==myId){const mv=(rv.votes[pid+'|'+cat]||{})[myId];
-        votes.append(el('button',{class:'vote'+(mv==='yes'?' on':''),'aria-pressed':String(mv==='yes'),'aria-label':`Vale (${s.y||0})`,onclick:()=>act('vote',{pid,cat,val:mv==='yes'?null:'yes'})},'👍',s.y?el('small',{text:s.y}):null),
-                     el('button',{class:'vote'+(mv==='no'?' on':''),'aria-pressed':String(mv==='no'),'aria-label':`Não vale (${s.n||0})`,onclick:()=>act('vote',{pid,cat,val:mv==='no'?null:'no'})},'👎',s.n?el('small',{text:s.n}):null))}
-      else if(!s.fixed&&(s.y||s.n))votes.append(el('span',{class:'vcount',text:`👍${s.y} 👎${s.n}`}));
-      ul.append(el('li',{class:s.valid?'':'bad'},el('span',{class:'who',text:pid===myId?'Você':rv.names[pid]}),word,votes,el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts})))}
-    f.append(el('section',{class:'rvtheme'},el('h2',{text:cat}),ul))}
+        l2.append(el('button',{class:'vote'+(mv==='yes'?' on':''),'aria-pressed':String(mv==='yes'),'aria-label':`Vale (${s.y||0})`,onclick:()=>act('vote',{pid,cat,val:mv==='yes'?null:'yes'})},'👍',s.y?el('small',{text:s.y}):null),
+                  el('button',{class:'vote'+(mv==='no'?' on':''),'aria-pressed':String(mv==='no'),'aria-label':`Não vale (${s.n||0})`,onclick:()=>act('vote',{pid,cat,val:mv==='no'?null:'no'})},'👎',s.n?el('small',{text:s.n}):null))}
+      else if(!s.fixed&&(s.y||s.n))l2.append(el('span',{class:'vcount',text:`👍${s.y} 👎${s.n}`}));
+      tr.append(el('td',{class:'cell'+(s.valid?'':' bad')+(pid===myId?' me':'')},l1,l2))}
+    tb.append(tr)}
+  tbl.append(tb,el('tfoot',{},el('tr',{},el('th',{class:'cat',scope:'row',text:'Total'}),rv.order.map(pid=>el('td',{class:'tot num'+(pid===myId?' me':''),text:res.total[pid]})))));
+  f.append(el('div',{class:'mxwrap'},tbl));
   return f;
 }
 function scoresView(){
