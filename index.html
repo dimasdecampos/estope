@@ -396,6 +396,46 @@ table.mx{border-collapse:collapse;border-spacing:0}
 .mx tfoot td.tot{font-family:var(--hand);font-size:28px;color:var(--redpen);border-left:1.5px solid rgba(90,98,112,.35)}
 .mx tfoot td.tot:nth-child(2){border-left:0}
 .mx tfoot .cat{color:var(--ink);font-size:22px}
+
+/* ===== matriz em uma linha por tema + ícones padronizados (✓ ✗ à mão) ===== */
+.mx tbody tr{height:var(--ln)}
+.mx .cat{width:104px;min-width:104px;max-width:104px}
+.mx .cat .cl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:16px;line-height:1.05!important}
+.mx td.cell{min-width:190px;height:var(--ln)}
+.mx .ln{height:var(--ln);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.mx .ln .w{flex:1 1 auto;min-width:0;max-width:120px}
+.mx .ln .pts{margin-left:auto}
+.mark{font-family:var(--hand);font-size:22px;line-height:1!important;display:inline-block}
+.mark.ok{color:var(--okpen);transform:rotate(-6deg)}
+.mark.no{color:var(--redpen);transform:rotate(4deg)}
+.vote{min-width:32px;height:28px;padding:0 5px;gap:2px}
+.vote small{font-family:var(--hand);font-size:15px;color:var(--ink)}
+.vote.ok.on{box-shadow:inset 0 -13px 0 rgba(30,138,74,.22);border-color:var(--okpen)}
+.vote.no.on{box-shadow:inset 0 -13px 0 rgba(211,53,43,.2);border-color:var(--redpen)}
+.vote.on .mark{font-size:25px}
+.vcount{display:inline-flex;align-items:center;gap:2px;font-family:var(--hand);font-size:16px;color:var(--pencil)}
+.legend{column-gap:14px!important;row-gap:0!important}
+.legend .mark{font-size:20px}
+@media (max-width:420px){.legend{font-size:16px!important}}
+.legend .lg{height:var(--ln)}
+.mx .ln .w{max-width:92px}
+.mx .vote{min-width:30px;padding:0 3px}
+.mx .ln{gap:4px}
+.mx td.cell{min-width:0;padding:0 6px}
+@media (min-width:700px){.mx .ln .w{max-width:160px}.mx td.cell{padding:0 10px}}
+
+/* quadradinho de voto, desenhado à mão */
+.vbox{flex:none;width:30px;height:28px;display:grid;place-items:center;background:#fff;border:2px solid var(--ink);border-radius:4px 7px 5px 6px/6px 4px 7px 5px;padding:0;cursor:pointer}
+.vbox .mark{font-size:26px;transform:translateY(-3px) rotate(-6deg)}
+.vbox.yes{box-shadow:inset 0 -11px 0 rgba(30,138,74,.18)}
+.vbox.no{box-shadow:inset 0 -11px 0 rgba(211,53,43,.16)}
+@media (max-width:520px){
+  .mx .cat{width:84px;min-width:84px;max-width:84px}
+  .mx .cat .cl{font-size:15px}
+  .mx .ln .w{max-width:78px;font-size:22px}
+  .mx .pts{width:30px;height:28px;font-size:17px}
+  .mx .badge{min-width:20px;padding:0 3px}
+}
 </style>
 </head>
 <body>
@@ -897,26 +937,30 @@ function reviewView(){
   const rv=state.review,f=el('div');if(!rv)return f;
   const res=computePoints(rv,state.config);
   f.append(el('h1',{text:`Correção da letra ${rv.letter}`}),
-    el('p',{class:'muted',text:'Vote 👍 ou 👎 nas palavras dos outros.'}),
-    el('p',{class:'legend'},el('span',{class:'lg'},el('span',{class:'badge',text:'×2'}),'repetida'),el('span',{class:'lg'},el('span',{class:'badge q',text:'?'}),'fora do dicionário')));
+    el('p',{class:'muted',text:'Toque no quadradinho para votar.'}),
+    el('p',{class:'legend'},el('span',{class:'lg'},el('span',{class:'mark ok',text:'✓'}),'vale'),el('span',{class:'lg'},el('span',{class:'mark no',text:'✗'}),'não vale'),
+      el('span',{class:'lg'},el('span',{class:'badge',text:'×2'}),'repetida'),el('span',{class:'lg'},el('span',{class:'badge q',text:'?'}),'fora do dicionário')));
   if(!rv.dictDone)f.append(el('p',{},el('span',{class:'note',text:'Verificando palavras no dicionário…'})));
-  // matriz: temas nas linhas, jogadores nas colunas
+  // matriz: temas nas linhas, jogadores nas colunas, uma linha da pauta por tema
   const tbl=el('table',{class:'mx'});
   tbl.append(el('thead',{},el('tr',{},el('th',{class:'cat',scope:'col',text:'Tema'}),
     rv.order.map(pid=>el('th',{scope:'col',class:pid===myId?'me':''},avatar(rv.names[pid],colorOf(pid)),el('span',{class:'nm',text:pid===myId?'Você':rv.names[pid]}))))));
   const tb=el('tbody');
   for(const cat of rv.cats){
-    const tr=el('tr',{},el('th',{class:'cat',scope:'row',text:cat}));
+    const tr=el('tr',{},el('th',{class:'cat',scope:'row',title:cat},el('span',{class:'cl',text:cat})));
     for(const pid of rv.order){const c=rv.rows[pid][cat],s=res.cell[pid][cat];
-      const l1=el('div',{class:'l1'},el('span',{class:'w',text:c.w||'—'}));
-      if(s.shared>1)l1.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
-      if(s.why){const dic=s.why==='fora do dicionário';l1.append(el('span',{class:'badge'+(dic?' q':' x'),title:s.why,text:dic?'?':s.why==='verificando…'?'…':'!'}))}
-      const l2=el('div',{class:'l2'},el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts}));
+      const line=el('div',{class:'ln'},el('span',{class:'w',title:c.w||'',text:c.w||'—'}));
+      if(s.shared>1)line.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
+      if(s.why){const dic=s.why==='fora do dicionário';line.append(el('span',{class:'badge'+(dic?' q':' x'),title:s.why,text:dic?'?':s.why==='verificando…'?'…':'!'}))}
+      line.append(el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts}));
       if(!s.fixed&&pid!==myId){const mv=(rv.votes[pid+'|'+cat]||{})[myId];
-        l2.append(el('button',{class:'vote'+(mv==='yes'?' on':''),'aria-pressed':String(mv==='yes'),'aria-label':`Vale (${s.y||0})`,onclick:()=>act('vote',{pid,cat,val:mv==='yes'?null:'yes'})},'👍',s.y?el('small',{text:s.y}):null),
-                  el('button',{class:'vote'+(mv==='no'?' on':''),'aria-pressed':String(mv==='no'),'aria-label':`Não vale (${s.n||0})`,onclick:()=>act('vote',{pid,cat,val:mv==='no'?null:'no'})},'👎',s.n?el('small',{text:s.n}):null))}
-      else if(!s.fixed&&(s.y||s.n))l2.append(el('span',{class:'vcount',text:`👍${s.y} 👎${s.n}`}));
-      tr.append(el('td',{class:'cell'+(s.valid?'':' bad')+(pid===myId?' me':'')},l1,l2))}
+        const next=mv==='yes'?'no':mv==='no'?null:'yes';
+        line.append(el('button',{class:'vbox'+(mv==='yes'?' yes':mv==='no'?' no':''),
+          'aria-label':`Seu voto: ${mv==='yes'?'vale':mv==='no'?'não vale':'sem voto'}. Tocar muda. Votos: ${s.y||0} vale, ${s.n||0} não vale`,
+          title:`✓ ${s.y||0}  ✗ ${s.n||0}`,onclick:()=>act('vote',{pid,cat,val:next})},
+          el('span',{class:'mark '+(mv==='yes'?'ok':'no'),text:mv==='yes'?'✓':mv==='no'?'✗':''})))}
+      else if(!s.fixed&&(s.y||s.n))line.append(el('span',{class:'vcount'},el('span',{class:'mark ok',text:'✓'}),String(s.y),' ',el('span',{class:'mark no',text:'✗'}),String(s.n)));
+      tr.append(el('td',{class:'cell'+(s.valid?'':' bad')+(pid===myId?' me':'')},line))}
     tb.append(tr)}
   tbl.append(tb,el('tfoot',{},el('tr',{},el('th',{class:'cat',scope:'row',text:'Total'}),rv.order.map(pid=>el('td',{class:'tot num'+(pid===myId?' me':''),text:res.total[pid]})))));
   f.append(el('div',{class:'mxwrap'},tbl));
