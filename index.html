@@ -362,6 +362,15 @@ body{font-size:19px}
 .sheethead .t{font-size:28px}
 .sheethead{grid-template-columns:72px minmax(0,1fr);position:relative}
 .sheethead .timer{position:absolute;right:0;bottom:0}
+/* ===== olhinho: respostas escondidas com asteriscos ===== */
+.sheethead .eye{position:absolute;right:0;top:4px;height:32px;padding:0 8px;font-family:var(--hand);font-size:19px;line-height:1;color:var(--ink);background:#fff;border:2px solid var(--pencil);border-radius:14px 225px 14px 255px/255px 14px 225px 14px}
+.sheethead .eye[aria-pressed="true"]{box-shadow:inset 0 -12px 0 rgba(255,228,107,.85);border-color:var(--ink)}
+.sheethead .t{padding-right:104px}
+.fld .mask{position:absolute;left:0;top:0;height:var(--ln);line-height:calc(var(--ln) + 8px)!important;font-family:var(--hand);font-size:30px;letter-spacing:2px;color:var(--pen);pointer-events:none;display:none;white-space:nowrap;overflow:hidden;max-width:calc(100% - 34px)}
+.private .fld input:not(:focus):not(:placeholder-shown){color:transparent;text-decoration:none}
+.private .fld input:not(:focus):not(:placeholder-shown)~.mask{display:block}
+.sheethead .eye{width:40px;padding:0;font-size:20px}
+.sheethead .t{padding-right:46px}
 </style>
 </head>
 <body>
@@ -831,11 +840,17 @@ function sheetView(){
   f.append(el('div',{class:'sheethead'},el('div',{class:'lettertile','aria-label':'Letra '+state.letter,text:state.letter}),
     el('div',{},el('div',{class:'t',text:`Tudo com ${state.letter}`}),el('div',{class:'sub num',text:`Rodada ${state.round} de ${c.rounds}`})),
     el('div',{class:'timer num',id:'timer',hidden:!state.playDur})));
-  const box=el('div',{class:'fields'});
+  // olhinho: esconde com asteriscos as respostas que não estão sendo digitadas
+  const box=el('div',{class:'fields'+(store.get(NS+'-private',false)?' private':'')});
+  const eye=el('button',{class:'eye',type:'button'});
+  const setEye=()=>{const on=box.classList.contains('private');eye.textContent=on?'🙈':'👁';eye.setAttribute('aria-label',on?'Mostrar respostas':'Esconder respostas');eye.setAttribute('aria-pressed',String(on));eye.title=on?'Mostrar as respostas':'Esconder as respostas com asteriscos'};
+  eye.onclick=()=>{box.classList.toggle('private');store.set(NS+'-private',box.classList.contains('private'));setEye()};setEye();
+  f.querySelector('.sheethead').append(eye);
   c.cats.forEach((cat,i)=>{const inp=el('input',{value:myAnswers[cat]||'',maxlength:40,autocomplete:'off',autocapitalize:'sentences',spellcheck:'false','data-cat':cat,placeholder:state.letter+'…',enterkeyhint:i<c.cats.length-1?'next':'done'});
-    inp.addEventListener('input',()=>{myAnswers[cat]=inp.value;store.set(NS+'-ans',{k:room+'|'+answersRound,a:myAnswers});queueSend();updateSheet()});
+    const mask=el('span',{class:'mask','aria-hidden':'true',text:'*'.repeat((myAnswers[cat]||'').length)});
+    inp.addEventListener('input',()=>{myAnswers[cat]=inp.value;mask.textContent='*'.repeat(inp.value.length);store.set(NS+'-ans',{k:room+'|'+answersRound,a:myAnswers});queueSend();updateSheet()});
     inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const n=box.querySelectorAll('input')[i+1];n?n.focus():inp.blur()}});
-    box.append(el('label',{class:'fld'},el('span',{text:cat}),el('div',{class:'box'},inp,el('span',{class:'mk','aria-hidden':'true'}))))});
+    box.append(el('label',{class:'fld'},el('span',{text:cat}),el('div',{class:'box'},inp,mask,el('span',{class:'mk','aria-hidden':'true'}))))});
   f.append(box);
   return f;
 }
