@@ -764,7 +764,7 @@ function handleAction(from,type,d){
   case 'start': if(!H||!['lobby','end'].includes(state.phase))return;
       if(!state.config.cats.length){toast('Adicione pelo menos 1 tema');return}
       resetGame();nextTurn();break;
-  case 'spin': if(state.phase!=='spin'||(from!==state.spinner&&!H))return;{
+  case 'spin': if(state.phase!=='spin'||from!==state.spinner)return;{ // só quem está na vez sorteia
       const letters=wheelLetters(state.config);let avail=letters.filter(l=>!state.used.includes(l));
       if(!avail.length){state.used=[];avail=letters}
       const letter=avail[Math.floor(Math.random()*avail.length)];
@@ -974,7 +974,6 @@ function renderAction(){
     else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} começar`}));
   }else if(ph==='spin'){
     if(state.spinner===myId)inn.append(el('button',{class:'btn wide',text:'Sortear letra',onclick:()=>act('spin')}));
-    else if(H)inn.append(el('button',{class:'btn ghost wide',text:`Sortear no lugar de ${nameOf(state.spinner)}`,onclick:()=>act('spin')}));
     else inn.append(el('p',{class:'hint',text:`${nameOf(state.spinner)} vai sortear a letra`}));
   }else if(ph==='spinning'){inn.append(el('p',{class:'hint',text:'Sorteando…'}));
   }else if(ph==='play'){
