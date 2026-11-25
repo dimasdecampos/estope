@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="theme-color" content="#2F5D50">
 <title>ESTOPE! Stop online com a turma</title>
+<link rel="preconnect" href="https://esm.sh" crossorigin>
+<link rel="modulepreload" href="https://esm.sh/@supabase/supabase-js@2.45.4/es2022/supabase-js.bundle.mjs" crossorigin>
+<link rel="modulepreload" href="https://esm.sh/node/buffer.mjs" crossorigin>
+<link rel="preconnect" href="https://smlhkifwlbqsvfsixkvo.supabase.co" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
@@ -663,7 +667,6 @@ table.mx{border-collapse:collapse;border-spacing:0}
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 /* ================= CONFIG ================= */
 const SUPA_URL = 'https://smlhkifwlbqsvfsixkvo.supabase.co';
@@ -732,10 +735,10 @@ function buildJoin(){
   showRoomBox(!!room&&room!==DEFAULT_ROOM);
   const box=$('#shirtSw');const mk=()=>{box.innerHTML='';SHIRTS.forEach(c=>box.append(el('button',{class:'sw',style:'--c:'+c,'aria-label':'Cor '+c,'aria-pressed':String(me.shirt===c),onclick:()=>{me.shirt=c;mk()}})))};mk();
   $('#newRoom').onclick=()=>{$('#roomIn').value=roomCode()};
-  $('#enterBtn').onclick=enter;
+  $('#enterBtn').onclick=()=>enter();
   $('#nameIn').addEventListener('keydown',e=>{if(e.key==='Enter')enter()});
 }
-function enter(){
+function enter(resume=false){
   const n=$('#nameIn').value.trim().slice(0,14);
   if(!n){$('#nameIn').focus();toast('Digite seu nome');return}
   const r=$('#roomBox').hidden?DEFAULT_ROOM:$('#roomIn').value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
@@ -744,13 +747,16 @@ function enter(){
   saveSession();setInterval(saveSession,5*60*1000);
   history.replaceState(null,'',roomUrl());
   beep(880,.05);
+  if(!REDUCED&&!resume)turnPage($('#join .joincard'));
   $('#join').hidden=true;$('#app').hidden=false;
   $('#roomName').textContent=room===DEFAULT_ROOM?'Sala principal':'Sala '+room;
   connect();renderAll();
 }
 
 /* ================= REDE ================= */
-const sb=createClient(SUPA_URL,SUPA_KEY,{realtime:{params:{eventsPerSecond:20}}});
+let sb=null;
+// já abre a conexão com o servidor enquanto a pessoa digita o nome
+const sbReady=import('https://esm.sh/@supabase/supabase-js@2.45.4/es2022/supabase-js.bundle.mjs').then(m=>{sb=m.createClient(SUPA_URL,SUPA_KEY,{realtime:{params:{eventsPerSecond:20}}});try{sb.realtime.connect()}catch{}return sb});
 let ch=null,connected=false;
 let presence={};
 let hostId=null;
@@ -758,7 +764,8 @@ let state=null;
 const amHost=()=>hostId===myId;
 const myMeta=()=>({id:myId,name:me.name,shirt:me.shirt,skin:me.skin,joinedAt});
 function send(event,payload){if(ch&&connected)ch.send({type:'broadcast',event,payload}).catch(()=>{})}
-function connect(){
+async function connect(){
+  try{await sbReady}catch{toast('Sem conexão. Atualize a página');return}
   ch=sb.channel(NS+'-'+room,{config:{broadcast:{self:false},presence:{key:myId}}});
   ch.on('presence',{event:'sync'},onPresence);
   ch.on('broadcast',{event:'state'},({payload})=>onState(payload));
@@ -1003,8 +1010,8 @@ function renderPlayers(){
 
 let pageKind='';
 const kindOf=ph=>ph==='spinning'?'spin':ph==='stopping'?'play':ph==='end'?'scores':ph;
-function turnPage(){
-  const p=document.querySelector('.page.sheet');if(!p)return;
+function turnPage(p=document.querySelector('.page.sheet')){
+  if(!p)return;
   const r=p.getBoundingClientRect();const c=p.cloneNode(true);
   // copia o que foi digitado (o clone não leva o valor atual dos campos)
   const src=p.querySelectorAll('input,select'),dst=c.querySelectorAll('input,select');src.forEach((e,i)=>{if(dst[i])dst[i].value=e.value});
@@ -1307,7 +1314,7 @@ buildJoin();
   if(myId!==session.id)return;
   if(await sessionBusy()){myId=rid(10);try{sessionStorage.setItem(NS+'-id',myId)}catch{}return}
   room=session.room;$('#roomIn').value=room;$('#roomBox').hidden=room===DEFAULT_ROOM;
-  enter();toast('Bem-vindo de volta, '+me.name);
+  enter(true);toast('Bem-vindo de volta, '+me.name);
 })();
 </script>
 </body>
