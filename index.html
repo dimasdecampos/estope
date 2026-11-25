@@ -896,6 +896,15 @@ function renderStage(){
   const mx=S.querySelector('.mxwrap');if(mx)mx.scrollLeft=keepX;
 }
 
+/* A parte de ações fica presa no pé da tela; este ajuste faz ela sempre encaixar nas linhas da folha.
+   Completa o espaço embaixo até a próxima linha do caderno, assim o topo dela cai exatamente numa linha. */
+const LN=40;let rulesRaf=0;
+function syncRules(){cancelAnimationFrame(rulesRaf);rulesRaf=requestAnimationFrame(()=>{
+  const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden)return;
+  const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
+  const r=((vb-p.getBoundingClientRect().top)%LN+LN)%LN;
+  a.style.paddingBottom=r+'px'})}
+addEventListener('scroll',syncRules,{passive:true});addEventListener('resize',syncRules);visualViewport?.addEventListener('resize',syncRules);
 function renderAction(){
   const A=$('#action');A.innerHTML='';if(!state)return;
   const ph=state.phase,H=amHost(),inn=el('div',{class:'in'});
@@ -921,7 +930,7 @@ function renderAction(){
     if(H)inn.append(el('div',{class:'two'},el('button',{class:'btn ghost',text:'Mudar temas',onclick:()=>act('lobby')}),el('button',{class:'btn',text:'Jogar de novo',onclick:()=>act('start')})));
     else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} decidir a próxima`}));
   }
-  A.append(inn);updateSheet();
+  A.append(inn);updateSheet();syncRules();
 }
 
 /* ---------- telas ---------- */
