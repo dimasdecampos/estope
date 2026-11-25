@@ -511,6 +511,25 @@ table.mx{border-collapse:collapse;border-spacing:0}
   border:2.5px solid #7E1A14;border-radius:255px 14px 225px 14px/14px 225px 14px 255px;box-shadow:2px 2px 0 rgba(126,26,20,.35);text-shadow:0 0 4px #fff,0 0 8px #fff,0 0 2px #fff}
 .btn.stop:active{transform:translateY(2px)}
 .btn.stop:disabled{opacity:.4;transform:none}
+
+/* ===== espiral realista ===== */
+.page::before{display:none}
+.page::after{content:"";position:absolute;left:-18px;top:0;bottom:0;width:46px;pointer-events:none;z-index:3;
+  background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'46'%20height%3D'40'%20viewBox%3D'0%200%2046%2040'%3E%3Cdefs%3E%3ClinearGradient%20id%3D'm'%20x1%3D'0'%20y1%3D'0'%20x2%3D'0'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%23eef1f5'%2F%3E%3Cstop%20offset%3D'.35'%20stop-color%3D'%23b8c0cc'%2F%3E%3Cstop%20offset%3D'.75'%20stop-color%3D'%237c8595'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%2359616f'%2F%3E%3C%2FlinearGradient%3E%3CradialGradient%20id%3D'h'%20cx%3D'.45'%20cy%3D'.4'%20r%3D'.6'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%23cfd8e2'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%239ea8b6'%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Cellipse%20cx%3D'31'%20cy%3D'22'%20rx%3D'4.2'%20ry%3D'5'%20fill%3D'%238c96a5'%2F%3E%3Cellipse%20cx%3D'31.4'%20cy%3D'22.6'%20rx%3D'3.2'%20ry%3D'3.9'%20fill%3D'url(%23h)'%2F%3E%3Cpath%20d%3D'M8%2027%20C10%2031%2017%2031.5%2020%2029.5'%20fill%3D'none'%20stroke%3D'%235b6371'%20stroke-width%3D'3.4'%20stroke-linecap%3D'round'%20opacity%3D'.85'%2F%3E%3Cpath%20d%3D'M31.5%2021.5%20C31%2012.5%2022%208.5%2013.5%2010.5%20C7.5%2012%205.5%2018.5%208%2027'%20fill%3D'none'%20stroke%3D'rgba(30%2C36%2C48%2C.25)'%20stroke-width%3D'4.6'%20stroke-linecap%3D'round'%20transform%3D'translate(1.2%201.6)'%2F%3E%3Cpath%20d%3D'M31.5%2021.5%20C31%2012.5%2022%208.5%2013.5%2010.5%20C7.5%2012%205.5%2018.5%208%2027'%20fill%3D'none'%20stroke%3D'url(%23m)'%20stroke-width%3D'3.8'%20stroke-linecap%3D'round'%2F%3E%3Cpath%20d%3D'M28.5%2014.5%20C25%2010.8%2019.5%2010.2%2014.5%2011.6'%20fill%3D'none'%20stroke%3D'rgba(255%2C255%2C255%2C.85)'%20stroke-width%3D'1.1'%20stroke-linecap%3D'round'%2F%3E%3C%2Fsvg%3E") 0 0/46px var(--ln) repeat-y;-webkit-mask:none;mask:none;border-radius:0}
+.page{border-top-left-radius:2px;border-bottom-left-radius:2px}
+
+/* ===== folha virando ao trocar de fase ===== */
+.flip{position:fixed!important;z-index:60;pointer-events:none;margin:0!important;transform-origin:0 50%;
+  animation:pageturn .7s cubic-bezier(.5,.05,.35,1) forwards;will-change:transform}
+.flip::marker{content:none}
+.flip .shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,0) 40%,rgba(20,30,45,.22));opacity:0;animation:pageshade .7s ease-in forwards;z-index:4}
+@keyframes pageturn{
+  0%{transform:perspective(1800px) rotateY(0deg);box-shadow:0 12px 22px rgba(30,40,60,.18)}
+  55%{box-shadow:-30px 20px 40px rgba(30,40,60,.35)}
+  100%{transform:perspective(1800px) rotateY(-112deg);box-shadow:-10px 10px 20px rgba(30,40,60,0)}}
+@keyframes pageshade{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.flip{display:none}}
+.flip::after{display:none!important}
 </style>
 </head>
 <body>
@@ -876,6 +895,18 @@ function renderPlayers(){
     el('span',{class:'sc num',text:p.score})));
 }
 
+let pageKind='';
+const kindOf=ph=>ph==='spinning'?'spin':ph==='stopping'?'play':ph==='end'?'scores':ph;
+function turnPage(){
+  const p=document.querySelector('.page.sheet');if(!p)return;
+  const r=p.getBoundingClientRect();const c=p.cloneNode(true);
+  // copia o que foi digitado (o clone não leva o valor atual dos campos)
+  const src=p.querySelectorAll('input,select'),dst=c.querySelectorAll('input,select');src.forEach((e,i)=>{if(dst[i])dst[i].value=e.value});
+  c.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));c.removeAttribute('id');c.setAttribute('aria-hidden','true');
+  c.classList.add('flip');c.style.left=r.left+'px';c.style.top=r.top+'px';c.style.width=r.width+'px';c.style.height=r.height+'px';c.style.minHeight='0';
+  c.append(el('div',{class:'shade'}));document.body.append(c);
+  const kill=()=>c.remove();c.addEventListener('animationend',e=>{if(e.target===c)kill()});setTimeout(kill,1400);
+}
 function renderStage(){
   const S=$('#stage');
   if(!state){stageKey='';S.innerHTML='';S.append(el('p',{class:'muted',text:'Entrando na sala…'}));return}
@@ -886,13 +917,14 @@ function renderStage(){
   else if(ph==='spin'||ph==='spinning')key=ph+state.round+state.spinner+hostId+(state.spin?.id||'');
   else key=ph+state.round+hostId+Object.keys(presence).length+JSON.stringify(state.last);
   if(key===stageKey){updateSheet();return}stageKey=key;
+  const kd=kindOf(ph),turned=pageKind&&kd!==pageKind;if(turned&&!REDUCED)turnPage();pageKind=kd;
   const keep=window.scrollY,keepX=S.querySelector('.mxwrap')?.scrollLeft||0;S.innerHTML='';
   if(ph==='lobby')S.append(lobbyView());
   else if(ph==='spin'||ph==='spinning')S.append(spinView());
   else if(ph==='play'||ph==='stopping'){S.append(sheetView());updateSheet()}
   else if(ph==='review')S.append(reviewView());
   else S.append(scoresView());
-  if(ph==='review'||ph==='lobby')window.scrollTo(0,keep);
+  if(turned)window.scrollTo(0,0);else if(ph==='review'||ph==='lobby')window.scrollTo(0,keep);
   const mx=S.querySelector('.mxwrap');if(mx)mx.scrollLeft=keepX;
 }
 
