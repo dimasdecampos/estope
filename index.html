@@ -1152,7 +1152,8 @@ addEventListener('scroll',syncRules,{passive:true});addEventListener('resize',sy
 const FIELD='.page input:not([readonly]),.page select';
 const smallScreen=()=>matchMedia('(max-width:820px)').matches;
 function bringToTop(inp){if(!smallScreen())return;const row=inp.closest('.fld,li,label,.row,.invite')||inp;
-  const go=()=>{const bar=document.querySelector('.bar').getBoundingClientRect().bottom;const y=row.getBoundingClientRect().top+scrollY-bar-6;
+  const first=row.matches('.fld')&&row===document.querySelector('.fld');   // 1º tema: sobe 2 linhas a mais para a letra circulada aparecer
+  const go=()=>{const bar=document.querySelector('.bar').getBoundingClientRect().bottom;const y=row.getBoundingClientRect().top+scrollY-bar-6-(first?80:0);
     scrollTo({top:Math.max(0,y),behavior:REDUCED?'auto':'smooth'})};
   setTimeout(go,60);setTimeout(go,380)}                       // de novo depois que o teclado termina de abrir
 document.addEventListener('focusin',e=>{if(!e.target.matches?.(FIELD))return;document.body.classList.add('typing');bringToTop(e.target);syncRules();updateMore()});
