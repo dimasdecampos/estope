@@ -210,7 +210,8 @@ table.rv th:first-child{position:sticky;left:0;z-index:2}
   <div id="topbar">
     <div class="chip" id="roomchip"><span class="dot" id="conn"></span> Sala <b id="roomName"></b>
       <button class="btn ghost small" id="copyBtn" title="Convidar">🔗<span class="lbl"> Convidar</span></button>
-      <button class="btn ghost small" id="restartBtn" hidden title="Zera os pontos e começa outra partida">🔄<span class="lbl"> Recomeçar</span></button></div>
+      <button class="btn ghost small" id="restartBtn" hidden title="Zera os pontos e começa outra partida">🔄<span class="lbl"> Recomeçar</span></button>
+      <button class="btn ghost small" id="lobbyBtn" hidden title="Cancela a partida e volta para a configuração">⚙️<span class="lbl"> Encerrar</span></button></div>
   </div>
   <div class="chip" id="players" style="position:fixed;top:62px;left:10px;z-index:10"></div>
   <div id="banner"></div>
@@ -497,7 +498,8 @@ function connect(){
   ch.on('broadcast',{event:'state'},({payload})=>onState(payload));
   ch.on('broadcast',{event:'act'},({payload:p})=>{if(amHost()&&p&&p.from)handleAction(p.from,p.type,p.data||{})});
   ch.on('broadcast',{event:'hello'},()=>{sendPos();if(amHost())pushState(false)});
-  ch.on('broadcast',{event:'fx'},({payload:p})=>{if(p?.t==='stop')beep(220,.5,'sawtooth',.06);if(p?.t==='restart'){$('#wheelModal').hidden=true;spinAnim=null;myAnswers={};toast('🔄 A partida foi recomeçada!')}});
+  ch.on('broadcast',{event:'fx'},({payload:p})=>{if(p?.t==='stop')beep(220,.5,'sawtooth',.06);if(p?.t==='restart'){$('#wheelModal').hidden=true;spinAnim=null;myAnswers={};toast('🔄 A partida foi recomeçada!')}
+    if(p?.t==='lobby'){$('#wheelModal').hidden=true;spinAnim=null;myAnswers={};toast('⚙️ Partida encerrada, de volta à configuração')}});
   ch.subscribe(async st=>{
     if(st==='SUBSCRIBED'){connected=true;$('#conn').classList.add('on');await ch.track(myMeta());send('hello',{});sendPos()}
     else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED'){connected=false;$('#conn').classList.remove('on');if(st!=='CLOSED')toast('Conexão instável… tentando de novo')}
@@ -594,7 +596,10 @@ function handleAction(from,type,d){
       for(const id in state.players)state.players[id].score=0;
       state.round=0;state.used=[];state.turn=-1;state.last=null;state.review=null;state.spin=null;state.letter=null;state.stopBy=null;
       state.game=(state.game||0)+1;nextTurn();send('fx',{t:'restart'});toast('🔄 Partida recomeçada!');break;
-  case 'lobby': if(!H)return;clearTimers();state.phase='lobby';state.round=0;state.review=null;state.spin=null;state.letter=null;pushState();break;
+  case 'lobby': if(!H)return;clearTimers();$('#wheelModal').hidden=true;spinAnim=null;
+      for(const id in state.players)state.players[id].score=0;
+      state.phase='lobby';state.round=0;state.used=[];state.turn=-1;state.last=null;state.review=null;state.spin=null;state.letter=null;state.stopBy=null;state.spinner=null;
+      state.game=(state.game||0)+1;pushState();send('fx',{t:'lobby'});toast('⚙️ Partida encerrada');break;
   }
 }
 function finishSpin(id){if(!state||state.phase!=='spinning'||state.spin?.id!==id)return;
@@ -717,7 +722,7 @@ function renderBanner(){
   else if(ph==='review')b.append(el('span',{class:'big',text:'Conferência'}),'Votem nas palavras suspeitas');
   else if(ph==='scores')b.append(el('span',{class:'big',text:'Placar'}),R);
   else if(ph==='end')b.append(el('span',{class:'big',text:'🏆 Fim de jogo!'}),`Vencedor: ${winner()}`);
-  $('#restartBtn').hidden=!(amHost()&&ph!=='lobby');
+  $('#restartBtn').hidden=$('#lobbyBtn').hidden=!(amHost()&&ph!=='lobby');
   // em tela pequena o banner aparece só por alguns segundos a cada mudança, para não cobrir a sala
   const k=b.textContent;if(k!==bannerKey){bannerKey=k;b.classList.remove('fade');clearTimeout(bannerT);bannerT=setTimeout(()=>b.classList.add('fade'),4000)}
 }
@@ -727,12 +732,13 @@ function winner(){const ps=Object.values(state.players).sort((a,b)=>b.score-a.sc
 function setMin(v){$('#panel').classList.toggle('min',v);$('#mintoggle').textContent=v?'▴ Abrir':'▾';measurePanel()}
 $('#mintoggle').onclick=()=>setMin(!$('#panel').classList.contains('min'));
 function measurePanel(){requestAnimationFrame(()=>{const p=$('#panel');const r=p.getBoundingClientRect();document.documentElement.style.setProperty('--panelh',Math.max(0,innerHeight-r.top)+'px')})}
-// Recomeçar pede um segundo toque para confirmar (sem janela de confirmação do navegador)
-let restartArm=null;
-$('#restartBtn').onclick=()=>{const b=$('#restartBtn');
-  const idle=()=>{b.innerHTML='🔄<span class="lbl"> Recomeçar</span>';b.classList.add('ghost')};
-  if(!restartArm){b.textContent='🔄 Confirmar?';b.classList.remove('ghost');restartArm=setTimeout(()=>{restartArm=null;idle()},3500);return}
-  clearTimeout(restartArm);restartArm=null;idle();act('restart')};
+// Recomeçar / Encerrar pedem um segundo toque para confirmar (sem janela de confirmação do navegador)
+function confirmBtn(sel,icon,label,action){let arm=null;const b=$(sel);
+  const idle=()=>{b.innerHTML=icon+'<span class="lbl"> '+label+'</span>';b.classList.add('ghost')};
+  b.onclick=()=>{if(!arm){b.textContent=icon+' Confirmar?';b.classList.remove('ghost');arm=setTimeout(()=>{arm=null;idle()},3500);return}
+    clearTimeout(arm);arm=null;idle();act(action)}}
+confirmBtn('#restartBtn','🔄','Recomeçar','restart');
+confirmBtn('#lobbyBtn','⚙️','Encerrar','lobby');
 $('#copyBtn').onclick=async()=>{const url=roomUrl();
   if(navigator.share&&matchMedia('(pointer:coarse)').matches){try{await navigator.share({title:'ESTOPE!',text:'Bora jogar Stop! Sala '+room,url});return}catch{}}
   try{await navigator.clipboard.writeText(url);toast('Link copiado! Mande pra turma 📲')}catch{prompt('Copie o link:',url)}};
