@@ -215,7 +215,8 @@ table.rv th:first-child{position:sticky;left:0;z-index:2}
     <div class="chip" id="roomchip"><span class="dot" id="conn"></span> Sala <b id="roomName"></b>
       <button class="btn ghost small" id="copyBtn" title="Convidar">🔗<span class="lbl"> Convidar</span></button>
       <button class="btn ghost small" id="restartBtn" hidden title="Zera os pontos e começa outra partida">🔄<span class="lbl"> Recomeçar</span></button>
-      <button class="btn ghost small" id="lobbyBtn" hidden title="Cancela a partida e volta para a configuração">⚙️<span class="lbl"> Encerrar</span></button></div>
+      <button class="btn ghost small" id="lobbyBtn" hidden title="Cancela a partida e volta para a configuração">⚙️<span class="lbl"> Encerrar</span></button>
+      <button class="btn ghost small" id="logoutBtn" title="Sair da sala">🚪<span class="lbl"> Sair</span></button></div>
   </div>
   <div class="chip" id="players" style="position:fixed;top:62px;left:10px;z-index:10"></div>
   <div id="banner"></div>
@@ -267,10 +268,22 @@ let toastT; function toast(msg){const t=$('#toast');t.textContent=msg;t.classLis
 let AC; function beep(f=600,d=.08,type='square',vol=.05){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.value=vol;o.connect(g);g.connect(AC.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.stop(AC.currentTime+d)}catch{}}
 
 /* ================= IDENTITY ================= */
-let myId; try{myId=sessionStorage.getItem('estope-id')||rid(10);sessionStorage.setItem('estope-id',myId)}catch{myId=rid(10)}
+// Sessão persistente: atualizar a página mantém o jogador na sala (mesmo id e pontos) até clicar em Sair.
+const SESSION_MS=12*60*60*1000;
+const loadSession=()=>{const s=store.get('estope-session',null);return s&&s.id&&s.room&&s.exp>Date.now()?s:null};
+let session=loadSession();
+let myId; try{myId=sessionStorage.getItem('estope-id')||session?.id||rid(10);sessionStorage.setItem('estope-id',myId)}catch{myId=session?.id||rid(10)}
 const params = new URLSearchParams(location.search);
 let room = (params.get('sala')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
 const DEFAULT_ROOM='GERAL';
+const saveSession=()=>store.set('estope-session',{id:myId,room,exp:Date.now()+SESSION_MS});
+function logout(){try{localStorage.removeItem('estope-session');localStorage.removeItem('estope-ans');sessionStorage.removeItem('estope-id')}catch{}
+  try{ch&&ch.unsubscribe()}catch{}location.replace(roomUrl())}
+// outra aba deste aparelho já está com a sessão aberta? (evita o mesmo jogador duplicado)
+const tabs=('BroadcastChannel' in window)?new BroadcastChannel('estope-tabs'):null;
+tabs&&tabs.addEventListener('message',e=>{if(e.data?.q==='who'&&e.data.id===myId&&!$('#hud').hidden)tabs.postMessage({a:'me',id:myId})});
+const sessionBusy=()=>new Promise(res=>{if(!tabs)return res(false);const t=setTimeout(()=>{tabs.removeEventListener('message',h);res(false)},350);
+  const h=e=>{if(e.data?.a==='me'&&e.data.id===myId){clearTimeout(t);tabs.removeEventListener('message',h);res(true)}};tabs.addEventListener('message',h);tabs.postMessage({q:'who',id:myId})});
 const roomUrl=()=>location.origin+location.pathname+(room&&room!==DEFAULT_ROOM?'?sala='+room:'');
 let me = { name: store.get('estope-name',''), shirt: store.get('estope-shirt',SHIRTS[Math.floor(Math.random()*8)]), skin: store.get('estope-skin',SKINS[1]) };
 const joinedAt = Date.now();
@@ -299,6 +312,7 @@ function enter(){
   const r=$('#roomBox').hidden?DEFAULT_ROOM:$('#roomIn').value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
   if(r.length<3){toast('Código da sala com pelo menos 3 caracteres');return}
   me.name=n;room=r;store.set('estope-name',n);store.set('estope-shirt',me.shirt);store.set('estope-skin',me.skin);
+  saveSession();setInterval(saveSession,5*60*1000);
   history.replaceState(null,'',roomUrl());
   beep(880,.05);
   $('#join').hidden=true;$('#hud').hidden=false;requestAnimationFrame(()=>resize());$('#roomName').textContent=room===DEFAULT_ROOM?'Principal':room;
@@ -692,7 +706,8 @@ function onStateChange(prev){
     spinAnim={id:state.spin.id,start:performance.now(),dur:state.spin.dur,from:wheelRot,to,n,letter:state.spin.letter};
     $('#wheelModal').hidden=false;$('#wheelLetter').classList.remove('show');
   }
-  if(ph==='play'&&answersRound!==(state.game||0)+':'+state.round+':'+state.letter){answersRound=(state.game||0)+':'+state.round+':'+state.letter;myAnswers={};locked=false;playStartLocal=Date.now();setMin(false);
+  if(ph==='play'&&answersRound!==(state.game||0)+':'+state.round+':'+state.letter){answersRound=(state.game||0)+':'+state.round+':'+state.letter;
+    {const sv=store.get('estope-ans',null);myAnswers=sv&&sv.k===room+'|'+answersRound&&sv.a?sv.a:{};if(Object.keys(myAnswers).length)setTimeout(queueSend,300)}locked=false;playStartLocal=Date.now();setMin(false);
     // já leva o cursor para o primeiro campo da planilha
     setTimeout(()=>{const i=document.querySelector('#panelbody .line input:not(:disabled)');if(i&&state?.phase==='play'){i.focus();i.scrollIntoView({block:'nearest'})}},250)}
   if(ph==='play'&&p!=='play')playStartLocal=Date.now();
@@ -748,6 +763,7 @@ function confirmBtn(sel,icon,label,action){let arm=null;const b=$(sel);
     clearTimeout(arm);arm=null;idle();act(action)}}
 confirmBtn('#restartBtn','🔄','Recomeçar','restart');
 confirmBtn('#lobbyBtn','⚙️','Encerrar','lobby');
+{let arm=null;const b=$('#logoutBtn');b.onclick=()=>{if(!arm){b.textContent='🚪 Sair mesmo?';b.classList.remove('ghost');arm=setTimeout(()=>{arm=null;b.innerHTML='🚪<span class="lbl"> Sair</span>';b.classList.add('ghost')},3500);return}logout()}}
 $('#copyBtn').onclick=async()=>{const url=roomUrl();
   if(navigator.share&&matchMedia('(pointer:coarse)').matches){try{await navigator.share({title:'ESTOPE!',text:'Bora jogar Stop! Sala '+room,url});return}catch{}}
   try{await navigator.clipboard.writeText(url);toast('Link copiado! Mande pra turma 📲')}catch{prompt('Copie o link:',url)}};
@@ -820,7 +836,7 @@ function sheetView(){
   f.append(el('div',{class:'sheethead'},el('div',{class:'letter',text:state.letter}),el('div',{},el('div',{style:'font-weight:700',text:`Rodada ${state.round}/${c.rounds}`}),el('div',{class:'muted',text:'Tudo começando com '+state.letter})),el('div',{class:'timer',id:'timer'})));
   const sh=el('div',{class:'sheet'});
   c.cats.forEach((cat,i)=>{const inp=el('input',{value:myAnswers[cat]||'',maxlength:40,autocomplete:'off',autocapitalize:'sentences','data-cat':cat,placeholder:state.letter+'…'});
-    inp.addEventListener('input',()=>{myAnswers[cat]=inp.value;queueSend();updateSheet()});
+    inp.addEventListener('input',()=>{myAnswers[cat]=inp.value;store.set('estope-ans',{k:room+'|'+answersRound,a:myAnswers});queueSend();updateSheet()});
     inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const n=sh.querySelectorAll('input')[i+1];n?n.focus():inp.blur()}});
     sh.append(el('div',{class:'line'},el('label',{text:cat,title:cat}),inp,el('span',{class:'okm'})))});
   f.append(sh);
@@ -890,6 +906,15 @@ function scoresView(){
 }
 
 buildJoin();
+// volta direto para a sala se houver sessão válida (e o link não pedir outra sala)
+(async()=>{
+  if(!session||!me.name)return;
+  if(room&&room!==session.room)return;
+  if(myId!==session.id)return;                       // esta aba já é outro jogador
+  if(await sessionBusy()){myId=rid(10);try{sessionStorage.setItem('estope-id',myId)}catch{}return}
+  room=session.room;$('#roomIn').value=room;$('#roomBox').hidden=room===DEFAULT_ROOM;
+  enter();toast('Bem-vindo de volta, '+me.name+'!');
+})();
 </script>
 </body>
 </html>
