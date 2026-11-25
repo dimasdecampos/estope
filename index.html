@@ -75,6 +75,9 @@ label.f{display:block;font-weight:600;font-size:14px;margin:14px 0 6px}
   html #toast.show{transform:translateX(-50%) translateY(0)}
   #panel{left:0;right:0;bottom:var(--kb,0px);top:auto;width:100%;max-height:58vh;max-height:min(58dvh,calc(100dvh - var(--kb,0px) - 70px));border-radius:20px 20px 0 0;padding-bottom:env(safe-area-inset-bottom)}
   #panel.min{transform:translateY(calc(100% - 46px - env(safe-area-inset-bottom)))}
+  /* na hora de preencher (ou digitando), a planilha ocupa a tela toda */
+  body.sheetfull #panel,body.typing #panel{top:0;max-height:none;height:100vh;height:calc(100dvh - var(--kb,0px));border-radius:0;padding-top:env(safe-area-inset-top)}
+  body.sheetfull #panel.min{transform:translateY(calc(100% - 46px - env(safe-area-inset-bottom)))}
 }
 /* celular deitado: painel na lateral, mais estreito */
 @media (max-height:520px) and (orientation:landscape){
@@ -86,6 +89,7 @@ label.f{display:block;font-weight:600;font-size:14px;margin:14px 0 6px}
   #topbar{top:8px;left:8px}
   .letter{width:54px;height:54px;font-size:34px}
   #banner.fade{opacity:0;transform:translateX(-50%) translateY(12px)}
+  body.typing #panel{left:0;right:0;top:0;bottom:0;width:auto;border-radius:0}
   html #toast{bottom:auto;top:56px;left:calc((100% - min(360px,46%) - 8px)/2);transform:translateX(-50%) translateY(-20px)}
   html #toast.show{transform:translateX(-50%) translateY(0)}
 }
@@ -723,10 +727,15 @@ function renderBanner(){
   else if(ph==='scores')b.append(el('span',{class:'big',text:'Placar'}),R);
   else if(ph==='end')b.append(el('span',{class:'big',text:'🏆 Fim de jogo!'}),`Vencedor: ${winner()}`);
   $('#restartBtn').hidden=$('#lobbyBtn').hidden=!(amHost()&&ph!=='lobby');
+  document.body.classList.toggle('sheetfull',ph==='play'||ph==='stopping');measurePanel();
   // em tela pequena o banner aparece só por alguns segundos a cada mudança, para não cobrir a sala
   const k=b.textContent;if(k!==bannerKey){bannerKey=k;b.classList.remove('fade');clearTimeout(bannerT);bannerT=setTimeout(()=>b.classList.add('fade'),4000)}
 }
 let bannerKey='',bannerT=null;
+// digitando em qualquer campo do painel: painel em tela cheia no celular
+const isField=e=>e.target.matches?.('#panel input:not([readonly]),#panel textarea,#panel select');
+document.addEventListener('focusin',e=>{if(isField(e)){document.body.classList.add('typing');measurePanel()}});
+document.addEventListener('focusout',e=>{if(isField(e))setTimeout(()=>{if(!document.activeElement?.matches?.('#panel input:not([readonly]),#panel textarea,#panel select')){document.body.classList.remove('typing');measurePanel()}},120)});
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 function winner(){const ps=Object.values(state.players).sort((a,b)=>b.score-a.score);return ps[0]?ps[0].name:'-'}
 function setMin(v){$('#panel').classList.toggle('min',v);$('#mintoggle').textContent=v?'▴ Abrir':'▾';measurePanel()}
