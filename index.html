@@ -550,6 +550,59 @@ table.mx{border-collapse:collapse;border-spacing:0}
 .ex .exw{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .22s,transform .22s}
 .ex .exw.out{opacity:0;transform:translateY(-6px)}
 @media (prefers-reduced-motion:reduce){.ex .exw{transition:none}}
+
+/* ===== folha dando a volta na espiral e se recolhendo atrás do caderno ===== */
+.page.sheet{position:relative;z-index:1}
+.flip2{position:fixed;z-index:60;pointer-events:none;transform-style:preserve-3d;transform-origin:0 50%;
+  animation:pageround 1.1s cubic-bezier(.42,.02,.3,1) forwards}
+.flip2 .face{position:absolute!important;inset:0;margin:0!important;min-height:0!important;width:100%!important;height:100%!important;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.flip2 .front::after{display:none!important}
+.flip2 .back{transform:rotateY(180deg);border-radius:3px;
+  background-color:#fbfcfd;background-image:repeating-linear-gradient(to bottom,transparent 0 calc(var(--ln) - 1.5px),rgba(191,213,238,.55) calc(var(--ln) - 1.5px) var(--ln))}
+.flip2 .front .shade{background:linear-gradient(90deg,rgba(20,30,45,.05),rgba(20,30,45,.28));animation:shadeFront 1.1s ease-in forwards}
+.flip2 .back .shade{position:absolute;inset:0;background:linear-gradient(270deg,rgba(20,30,45,.3),rgba(20,30,45,0) 60%);animation:shadeBack 1.1s ease-out forwards}
+@keyframes pageround{
+  0%{transform:perspective(1700px) rotateY(0deg);z-index:60}
+  49%{z-index:60}
+  50%{transform:perspective(1700px) rotateY(-180deg);z-index:0}
+  100%{transform:perspective(1700px) rotateY(-345deg);z-index:0}}
+@keyframes shadeFront{0%{opacity:0}45%{opacity:1}100%{opacity:1}}
+@keyframes shadeBack{0%,45%{opacity:.2}100%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.flip2{display:none}}
+/* dobra a folha para trás da espiral (cabe na tela do celular) */
+.flip2{animation:pagefold .9s cubic-bezier(.4,.05,.35,1) forwards}
+.flip2 .front .shade{animation:shadeFold .9s ease-in forwards}
+@keyframes pagefold{
+  0%{transform:perspective(1400px) rotateY(0deg);z-index:60}
+  18%{transform:perspective(1400px) rotateY(-14deg);z-index:60}
+  72%{z-index:60}
+  73%{z-index:0}
+  100%{transform:perspective(1400px) rotateY(96deg);z-index:0}}
+@keyframes shadeFold{0%{opacity:0}18%{opacity:.15}100%{opacity:1}}
+
+/* robôs na configuração */
+.botadd{display:flex;gap:8px;height:var(--ln);align-items:center}
+.botadd .btn{flex:1}
+
+/* ===== virada de página: vem na direção de quem olha e passa por cima da espiral =====
+   técnica: folha com frente e verso girando 180° pela lombada, luz falsa com degradê,
+   leve levantada (translateZ) no meio do giro e sombra projetada na folha de baixo */
+.flip2{animation:pageflip 1s cubic-bezier(.645,.045,.355,1) forwards;z-index:60}
+@keyframes pageflip{
+  0%  {transform:perspective(1500px) rotateY(0deg)    translateZ(0)}
+  45% {transform:perspective(1500px) rotateY(-80deg)  translateZ(36px)}
+  100%{transform:perspective(1500px) rotateY(-180deg) translateZ(0)}}
+.flip2 .front .shade{background:linear-gradient(90deg,rgba(20,30,45,.30) 0%,rgba(20,30,45,.06) 35%,rgba(255,255,255,.18) 70%,rgba(20,30,45,.10) 100%);animation:lightFront 1s cubic-bezier(.645,.045,.355,1) forwards}
+.flip2 .back .shade{background:linear-gradient(270deg,rgba(20,30,45,.35),rgba(20,30,45,0) 55%);animation:lightBack 1s cubic-bezier(.645,.045,.355,1) forwards}
+@keyframes lightFront{0%{opacity:0}45%{opacity:1}100%{opacity:1}}
+@keyframes lightBack{0%,45%{opacity:1}100%{opacity:.25}}
+.flip2 .back{opacity:1;animation:backFade 1s linear forwards}
+@keyframes backFade{0%,80%{opacity:1}100%{opacity:0}}
+.flipshadow{position:fixed;z-index:59;pointer-events:none;background:linear-gradient(90deg,rgba(20,30,45,.38),rgba(20,30,45,.12) 35%,rgba(20,30,45,0) 70%);
+  opacity:0;animation:castShadow 1s cubic-bezier(.645,.045,.355,1) forwards}
+@keyframes castShadow{0%{opacity:0}35%{opacity:1}75%{opacity:.4}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.flip2,.flipshadow{display:none}}
 </style>
 </head>
 <body>
@@ -738,17 +791,29 @@ let lastLocal=null;
 /* ================= LÓGICA DO ANFITRIÃO ================= */
 let hostAnswers={};
 let timers={};
-function freshState(){return{v:0,by:myId,phase:'lobby',config:{cats:[...CATS_DEFAULT],rounds:5,time:0,rule:'all',bonus:false,exclude:'KWY'},players:{},round:0,turn:-1,spinner:null,letter:null,used:[],spin:null,stopBy:null,review:null,last:null,playDur:0}}
-function onlineOrder(){return Object.values(presence).sort((a,b)=>a.joinedAt-b.joinedAt||(a.id<b.id?-1:1)).map(m=>m.id)}
+function freshState(){return{v:0,by:myId,phase:'lobby',config:{cats:[...CATS_DEFAULT],rounds:5,time:0,rule:'all',bonus:false,exclude:'KWY'},players:{},round:0,turn:-1,spinner:null,letter:null,used:[],spin:null,stopBy:null,review:null,last:null,playDur:0,bots:{}}}
+/* ===== robôs ===== */
+const BOT_LEVELS={bom:{name:'Robô Bom',fill:.45,color:'#1C9A5E'},medio:{name:'Robô Médio',fill:.7,color:'#F08A24'},otimo:{name:'Robô Ótimo',fill:.95,color:'#7B4FD6'}};
+const isBot=id=>!!state?.bots?.[id];
+const isOn=id=>!!presence[id]||isBot(id);
+function onlineOrder(){const humans=Object.values(presence).sort((a,b)=>a.joinedAt-b.joinedAt||(a.id<b.id?-1:1)).map(m=>m.id);
+  const bots=Object.keys(state?.bots||{}).sort((a,b)=>(state.players[a]?.joinedAt||0)-(state.players[b]?.joinedAt||0));return[...humans,...bots]}
+function botAnswers(level){const p=BOT_LEVELS[level]?.fill||.5,a={};
+  for(const c of state.config.cats){const ex=examplesFor(c,state.letter);if(ex.length&&Math.random()<p)a[c]=ex[Math.floor(Math.random()*ex.length)]}return a}
+function scheduleBotSpin(){clearTimeout(timers.botspin);if(state?.phase==='spin'&&isBot(state.spinner)){const id=state.spinner;timers.botspin=setTimeout(()=>handleAction(id,'spin',{}),1800+Math.random()*1200)}}
+function scheduleBotStop(){clearTimeout(timers.botstop);if(state?.phase!=='play')return;
+  for(const id in state.bots||{}){if(state.bots[id].level!=='otimo')continue;const a=hostAnswers[id]||{};
+    const ok=state.config.rule==='all'?state.config.cats.every(c=>norm(a[c]).startsWith(state.letter.toLowerCase())):Object.keys(a).length>0;
+    if(ok){timers.botstop=setTimeout(()=>{if(state.phase==='play')doStop(id)},(30+Math.random()*20)*1000);return}}}
 function syncPlayers(){
   for(const id in presence){const m=presence[id];const p=state.players[id];
     if(!p)state.players[id]={name:m.name,shirt:m.shirt,skin:m.skin,score:0,joinedAt:m.joinedAt};
     else if(p.name!==m.name||p.shirt!==m.shirt){p.name=m.name;p.shirt=m.shirt;p.skin=m.skin}}
-  if(state.phase==='spin'&&state.spinner&&!presence[state.spinner])pickSpinner();
+  if(state.phase==='spin'&&state.spinner&&!isOn(state.spinner)){pickSpinner();scheduleBotSpin()}
   pushState();
 }
 function pickSpinner(){const o=onlineOrder();state.turn=(state.turn+1)%o.length;state.spinner=o[state.turn]}
-function nextTurn(){state.round++;pickSpinner();state.phase='spin';state.letter=null;state.review=null;state.stopBy=null;state.spin=null;hostAnswers={};pushState()}
+function nextTurn(){state.round++;pickSpinner();state.phase='spin';state.letter=null;state.review=null;state.stopBy=null;state.spin=null;hostAnswers={};pushState();scheduleBotSpin()}
 function clearTimers(){for(const k in timers)clearTimeout(timers[k]);timers={}}
 function rearmTimers(){
   clearTimers();if(!state)return;
@@ -756,6 +821,7 @@ function rearmTimers(){
   if(state.phase==='play'&&state.playDur)timers.time=setTimeout(()=>doStop(null),Math.max(5000,state.playDur*1000-(Date.now()-(state.playStartedAt||Date.now()))));
   if(state.phase==='stopping')timers.fin=setTimeout(finishRound,3000);
   if(state.phase==='review'&&state.review)runDictionary(state.review.id);
+  scheduleBotSpin();scheduleBotStop();
 }
 function wheelLetters(cfg){const ex=new Set((cfg?.exclude||'').toUpperCase().replace(/[^A-Z]/g,'').split(''));const l=ALPHA.filter(x=>!ex.has(x));return l.length?l:ALPHA}
 function sanitizeAnswers(a){const o={};if(!a||typeof a!=='object')return o;for(const c of state.config.cats){const v=a[c];if(typeof v==='string')o[c]=v.slice(0,40)}return o}
@@ -793,6 +859,12 @@ function handleAction(from,type,d){
       state.last={round:state.round,letter:state.letter,gain:res.total};state.history=[...(state.history||[]),{round:state.round,letter:state.letter,gain:res.total}];
       state.phase=state.round>=state.config.rounds?'end':'scores';pushState();}break;
   case 'next': if(!H||state.phase!=='scores')return;nextTurn();break;
+  case 'addbot': if(!H||state.phase!=='lobby'||!BOT_LEVELS[d.level])return;{
+      state.bots=state.bots||{};if(Object.keys(state.bots).length>=4)return;
+      const L=BOT_LEVELS[d.level];const same=Object.values(state.bots).filter(b=>b.level===d.level).length;
+      const id='bot-'+rid(6),name=L.name+(same?' '+(same+1):'');
+      state.bots[id]={level:d.level};state.players[id]={name,shirt:L.color,skin:SKINS[0],score:0,joinedAt:Date.now(),bot:true};pushState();}break;
+  case 'rmbot': if(!H||state.phase!=='lobby'||!state.bots?.[d.id])return;delete state.bots[d.id];delete state.players[d.id];pushState();break;
   case 'restart': if(!H||state.phase==='lobby')return;
       if(!state.config.cats.length){toast('Adicione pelo menos 1 tema');return}
       clearTimers();resetGame();nextTurn();send('fx',{t:'restart'});toast('Partida recomeçada');break;
@@ -801,9 +873,12 @@ function handleAction(from,type,d){
   }
 }
 function finishSpin(id){if(!state||state.phase!=='spinning'||state.spin?.id!==id)return;
-  state.letter=state.spin.letter;state.used=[...state.used,state.letter];state.phase='play';state.playDur=state.config.time;state.playStartedAt=Date.now();hostAnswers={};pushState();
-  if(state.playDur)timers.time=setTimeout(()=>doStop(null),state.playDur*1000+800);}
-function doStop(by){if(state.phase!=='play')return;clearTimeout(timers.time);state.phase='stopping';state.stopBy=by;state.stopId=rid(5);pushState();send('fx',{t:'stop'});beep(220,.5,'sawtooth',.06);
+  state.letter=state.spin.letter;state.used=[...state.used,state.letter];state.phase='play';state.playDur=state.config.time;state.playStartedAt=Date.now();hostAnswers={};
+  for(const b in state.bots||{})hostAnswers[b]=botAnswers(state.bots[b].level);
+  pushState();
+  if(state.playDur)timers.time=setTimeout(()=>doStop(null),state.playDur*1000+800);
+  scheduleBotStop();}
+function doStop(by){if(state.phase!=='play')return;clearTimeout(timers.time);clearTimeout(timers.botstop);state.phase='stopping';state.stopBy=by;state.stopId=rid(5);pushState();send('fx',{t:'stop'});beep(220,.5,'sawtooth',.06);
   timers.fin=setTimeout(finishRound,3000+1800);}
 function autoCheck(raw,letter){
   const n=norm(raw);if(!n)return'empty';
@@ -816,7 +891,7 @@ const dkey=raw=>String(raw).trim().toLowerCase().replace(/\s+/g,' ');
 function finishRound(){
   if(state.phase!=='stopping')return;
   const cats=state.config.cats,letter=state.letter;
-  const pids=new Set([...Object.keys(hostAnswers),...Object.keys(presence)]);
+  const pids=new Set([...Object.keys(hostAnswers),...Object.keys(presence),...Object.keys(state.bots||{})]);
   const order=[...pids].sort((a,b)=>(state.players[a]?.joinedAt||0)-(state.players[b]?.joinedAt||0));
   const rows={},names={},dict={};
   for(const pid of order){rows[pid]={};names[pid]=state.players[pid]?.name||presence[pid]?.name||'?';const a=hostAnswers[pid]||{};
@@ -907,11 +982,12 @@ function renderBar(){
 function renderPlayers(){
   const box=$('#players');box.innerHTML='';
   const ids=new Set([...Object.keys(state?.players||{}),...Object.keys(presence)]);
-  const list=[...ids].map(id=>({id,name:nameOf(id),color:colorOf(id),score:state?.players[id]?.score||0,on:!!presence[id]}))
+  const list=[...ids].map(id=>({id,name:nameOf(id),color:colorOf(id),score:state?.players[id]?.score||0,on:isOn(id)}))
     .filter(p=>p.on||p.score>0).sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name));
   for(const p of list)box.append(el('div',{class:'pl'+(p.on?'':' off')+(p.id===myId?' me':''),title:p.name},
     avatar(p.name,p.color),el('span',{text:p.name}),
     p.id===hostId?el('span',{class:'tag',title:'Anfitrião','aria-label':'anfitrião',text:'👑'}):null,
+    isBot(p.id)?el('span',{class:'tag',title:'Robô',text:'🤖'}):null,
     (state?.phase==='spin'||state?.phase==='spinning')&&state.spinner===p.id?el('span',{class:'tag',title:'Sorteando',text:'🎯'}):null,
     el('span',{class:'sc num',text:p.score})));
 }
@@ -924,9 +1000,13 @@ function turnPage(){
   // copia o que foi digitado (o clone não leva o valor atual dos campos)
   const src=p.querySelectorAll('input,select'),dst=c.querySelectorAll('input,select');src.forEach((e,i)=>{if(dst[i])dst[i].value=e.value});
   c.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));c.removeAttribute('id');c.setAttribute('aria-hidden','true');
-  c.classList.add('flip');c.style.left=r.left+'px';c.style.top=r.top+'px';c.style.width=r.width+'px';c.style.height=r.height+'px';c.style.minHeight='0';
-  c.append(el('div',{class:'shade'}));document.body.append(c);
-  const kill=()=>c.remove();c.addEventListener('animationend',e=>{if(e.target===c)kill()});setTimeout(kill,1400);
+  // folha com frente (o que estava escrito) e verso (papel pautado em branco)
+  c.classList.add('face','front');c.append(el('div',{class:'shade'}));
+  const w=el('div',{class:'flip2','aria-hidden':'true'},c,el('div',{class:'face back'},el('div',{class:'shade'})));
+  w.style.left=r.left+'px';w.style.top=r.top+'px';w.style.width=r.width+'px';w.style.height=r.height+'px';
+  const sh=el('div',{class:'flipshadow','aria-hidden':'true'});sh.style.left=r.left+'px';sh.style.top=Math.max(r.top,0)+'px';sh.style.width=r.width+'px';sh.style.height=Math.min(r.height,innerHeight)+'px';
+  document.body.append(sh,w);
+  const kill=()=>{w.remove();sh.remove()};w.addEventListener('animationend',e=>{if(e.target===w)kill()});setTimeout(kill,2200);
 }
 function renderStage(){
   const S=$('#stage');
@@ -934,7 +1014,7 @@ function renderStage(){
   const ph=state.phase;let key;
   if(['play','stopping'].includes(ph))key='sheet:'+state.game+':'+state.round+state.letter+(ph==='stopping'?'s':'');
   else if(ph==='review')key='rv:'+state.review?.id+JSON.stringify(state.review?.votes)+JSON.stringify(state.review?.dict)+hostId;
-  else if(ph==='lobby')key='lb:'+JSON.stringify(state.config)+hostId+amHost();
+  else if(ph==='lobby')key='lb:'+JSON.stringify(state.config)+JSON.stringify(state.bots||{})+hostId+amHost();
   else if(ph==='spin'||ph==='spinning')key=ph+state.round+state.spinner+hostId+(state.spin?.id||'');
   else key=ph+state.round+hostId+Object.keys(presence).length+JSON.stringify(state.last);
   if(key===stageKey){updateSheet();return}stageKey=key;
@@ -1034,9 +1114,15 @@ function lobbyView(){
     el('label',{},'Tempo por rodada',sel([[0,'Sem limite'],[60,'1 min'],[90,'1min30'],[120,'2 min'],[180,'3 min'],[240,'4 min']],c.time,v=>upd({time:+v}))),
     el('label',{},'Quem pode dar ESTOPE',sel([['all','Quem preencheu tudo'],['any','Qualquer um']],c.rule,v=>upd({rule:v}))),
     el('label',{},'Letras fora do sorteio',el('input',{value:c.exclude,maxlength:20,style:'text-transform:uppercase',onchange:e=>upd({exclude:e.target.value})}))),
-    el('label',{class:'check'},el('input',{type:'checkbox',checked:c.bonus,onchange:e=>upd({bonus:e.target.checked})}),el('span',{text:'Bônus: 20 pontos se só um acertar'})),
+    el('label',{class:'check'},el('input',{type:'checkbox',checked:c.bonus,onchange:e=>upd({bonus:e.target.checked})}),el('span',{text:'Bônus: 20 se só um acertar'})),
     el('p',{class:'muted small-note',text:'Palavra única vale 10. Repetida divide os 10 entre quem repetiu. Vazia ou inválida vale 0.'}));
   f.append(regras);
+  const bots=Object.entries(state.bots||{});
+  const rb=el('section',{class:'block'},el('h2',{},'Robôs ',el('small',{text:bots.length+' de 4'})));
+  if(bots.length)rb.append(el('ul',{class:'cats'},bots.map(([id,b])=>el('li',{},el('span',{text:'🤖 '+(state.players[id]?.name||'Robô')}),el('button',{'aria-label':'Tirar '+(state.players[id]?.name||'robô'),title:'Tirar',text:'✕',onclick:()=>act('rmbot',{id})})))));
+  else rb.append(el('p',{class:'muted',text:'Jogue contra o computador.'}));
+  if(bots.length<4)rb.append(el('div',{class:'botadd'},Object.entries(BOT_LEVELS).map(([lv,L])=>el('button',{class:'btn ghost',text:'+ '+L.name.replace('Robô ',''),title:'Adicionar '+L.name,onclick:()=>act('addbot',{level:lv})}))));
+  f.append(rb);
   return f;
 }
 const fmtTime=s=>s%60?`${Math.floor(s/60)}min${s%60}`:`${s/60} min`;
@@ -1131,7 +1217,7 @@ function reviewView(){
 function scoresView(){
   const f=el('div'),end=state.phase==='end';
   const hist=state.history||[];
-  const list=Object.entries(state.players).map(([id,p])=>({id,...p})).filter(p=>presence[p.id]||p.score>0).sort((a,b)=>b.score-a.score);
+  const list=Object.entries(state.players).map(([id,p])=>({id,...p})).filter(p=>isOn(p.id)||p.score>0).sort((a,b)=>b.score-a.score);
   if(end&&list[0])f.append(el('div',{class:'winner'},el('div',{class:'crown',text:'⭐'}),el('div',{class:'name',text:list[0].id===myId?'Você venceu!':list[0].name}),el('div',{class:'muted num',text:`${list[0].score} pontos`})));
   else f.append(el('h1',{text:'Boletim'}),el('p',{class:'muted',text:`Depois da rodada ${state.last?.round||state.round} de ${state.config.rounds}`}));
   const tbl=el('table',{class:'mx sb'});
