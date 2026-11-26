@@ -635,6 +635,8 @@ table.mx{border-collapse:collapse;border-spacing:0}
 
 /* aviso sem botão: texto comum na pauta, sem fundo próprio */
 .page .action.plain{position:static;background:none;padding:0;transition:none}
+/* PC, telas com tabela: ações soltas uma linha abaixo da tabela, sem cobrir nada */
+.page .action.below{position:static;background:none;padding:0;transition:none}
 .page h2{height:var(--ln);overflow:visible}.page h2 small{line-height:1}
 
 /* ===== para crianças ===== */
@@ -686,6 +688,9 @@ table.mx{border-collapse:collapse;border-spacing:0}
 /* nada passa da largura da tela */
 html,body{overflow-x:clip}
 .winner .name{overflow-wrap:anywhere}
+
+/* botões sem fundo: as linhas do caderno aparecem por trás */
+.btn,.btn.ghost,.btn.stop,.page .action .btn.stop,.sheethead .eye,.mxnav button{background-color:transparent}
 </style>
 </head>
 <body>
@@ -1172,10 +1177,10 @@ function fitMx(root){root.querySelectorAll('.cat .cl').forEach(e=>fitCat(e))}
    - Quando a rolagem para: o botão desliza suave até ficar entre as linhas. */
 const LN=40;let rulesRaf=0,snapT=0,glideUntil=0;
 const mod=(n)=>((n%LN)+LN)%LN;
-function alignBg(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||a.classList.contains('plain'))return;
+function alignBg(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||a.classList.contains('plain')||a.classList.contains('below'))return;
   a.style.backgroundPosition='0 '+mod(p.getBoundingClientRect().top-a.getBoundingClientRect().top)+'px'}
 function glide(){alignBg();if(performance.now()<glideUntil)requestAnimationFrame(glide)}
-function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden||a.classList.contains('plain'))return;
+function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden||a.classList.contains('plain')||a.classList.contains('below'))return;
   const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
   const r=mod(vb-p.getBoundingClientRect().top);
   if(a.style.paddingBottom!==r+'px'){a.style.paddingBottom=r+'px';glideUntil=performance.now()+320;requestAnimationFrame(glide)}}
@@ -1183,7 +1188,7 @@ function updateMore(){const m=$('#more');if(!m)return;
   if($('#app').hidden){m.hidden=true;return}
   const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
   const left=document.documentElement.scrollHeight-(scrollY+innerHeight);
-  const a=$('#action');const at=a&&a.offsetHeight?a.getBoundingClientRect().top:vb;
+  const a=$('#action');const at=a&&a.offsetHeight&&!a.classList.contains('below')&&!a.classList.contains('plain')?a.getBoundingClientRect().top:vb;
   m.hidden=left<24;m.style.bottom=Math.max(16,vb-at+10)+'px';
   const st=$('#stage'),pg=document.querySelector('.page.sheet');if(st&&pg){const sl=st.getBoundingClientRect().left;m.style.left=Math.max(4,sl-m.offsetWidth-8)+'px'}}
 $('#more').addEventListener('click',()=>scrollBy({top:Math.round(innerHeight*.6),behavior:REDUCED?'auto':'smooth'}));
@@ -1233,7 +1238,8 @@ function renderAction(){
     else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} decidir a próxima`}));
   }
   // só um aviso (sem botão): fica escrito direto na linha da folha, sem faixa presa embaixo
-  const plain=!inn.querySelector('button,.stopnote');A.classList.toggle('plain',plain);if(plain){A.style.paddingBottom='';A.style.backgroundPosition=''}
+  const plain=!inn.querySelector('button,.stopnote');A.classList.toggle('plain',plain);const below=!plain&&['review','scores','end'].includes(ph)&&matchMedia('(hover:hover) and (pointer:fine)').matches;
+  A.classList.toggle('below',below);if(plain||below){A.style.paddingBottom='';A.style.backgroundPosition=''}
   A.append(inn);updateSheet();syncRules();requestAnimationFrame(updateMore);
 }
 
