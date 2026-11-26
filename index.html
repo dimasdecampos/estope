@@ -850,7 +850,7 @@ function enter(resume=false){
   if(!n){$('#nameIn').focus();toast('Digite seu nome');return}
   const r=$('#roomBox').hidden?DEFAULT_ROOM:$('#roomIn').value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
   if(r.length<3){toast('O código da sala precisa de pelo menos 3 caracteres');return}
-  me.name=n;room=r;store.set('estope-name',n);store.set(NS+'-shirt',me.shirt);
+  me.name=n;room=r;joinedAt=Date.now();store.set('estope-name',n);store.set(NS+'-shirt',me.shirt);
   saveSession();setInterval(saveSession,5*60*1000);
   history.replaceState(null,'',roomUrl());
   beep(880,.05);
@@ -909,6 +909,9 @@ function onPresence(){
   const ps=ch.presenceState();const np={};
   for(const k in ps){const m=ps[k]&&ps[k][0];if(m&&m.id)np[m.id]=m}
   np[myId]=myMeta();
+  // nome repetido na sala: quem chegou depois volta para a tela inicial para escolher outro
+  const mine=norm(me.name),dup=Object.values(np).find(m=>m.id!==myId&&norm(m.name)===mine&&(m.joinedAt<joinedAt||(m.joinedAt===joinedAt&&m.id<myId)));
+  if(dup){try{sessionStorage.setItem(NS+'-dup',me.name)}catch{}logout();return}
   for(const id in np)if(!presence[id]&&id!==myId&&state)toast(`${np[id].name} entrou na sala`);
   presence=np;
   const order=Object.values(presence).sort((a,b)=>a.joinedAt-b.joinedAt||(a.id<b.id?-1:1));
@@ -1527,6 +1530,8 @@ armed('#logoutBtn',logout);
 
 /* ---------- início ---------- */
 buildJoin();
+try{const d=sessionStorage.getItem(NS+'-dup');if(d){sessionStorage.removeItem(NS+'-dup');
+  setTimeout(()=>{toast(`Já tem alguém chamado ${d} nessa sala. Escolha outro nome.`);const i=$('#nameIn');i.focus();i.select()},400)}}catch{}
 (async()=>{
   if(!session||!me.name)return;
   if(room&&room!==session.room)return;
