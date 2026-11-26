@@ -691,6 +691,19 @@ html,body{overflow-x:clip}
 
 /* botões sem fundo: as linhas do caderno aparecem por trás */
 .btn,.btn.ghost,.btn.stop,.page .action .btn.stop,.sheethead .eye,.mxnav button{background-color:transparent}
+/* PC: opções do menu como ícones direto na barra do topo */
+@media (hover:hover) and (pointer:fine) and (min-width:700px){
+  #menuBtn{display:none}
+  .menu,.menu[hidden]{display:flex!important;position:static;background:none;box-shadow:none;transform:none;padding:0;min-width:0;gap:2px;align-items:center;font-family:var(--hand)}
+  .menu hr{display:none}
+  .menu button{width:auto;height:42px;padding:0 9px;font-size:21px;color:var(--chalk);border-radius:8px;white-space:nowrap}
+  .menu button[hidden]{display:none}
+  .menu button:hover{background:rgba(255,255,255,.12)}
+  .menu button .ml{display:none}
+  .menu button.armed{font-size:18px}
+}
+/* tela inicial: botão de entrar uma linha mais abaixo */
+#enterBtn{margin-top:var(--ln)}
 </style>
 </head>
 <body>
@@ -722,10 +735,10 @@ html,body{overflow-x:clip}
       <button class="icon" id="menuBtn" aria-label="Mais opções" aria-haspopup="true" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
       <div class="menu" id="menu" hidden role="menu">
-        <button id="restartBtn" role="menuitem" data-label="Recomeçar partida" data-icon="🔄">🔄 Recomeçar partida</button>
-        <button id="lobbyBtn" role="menuitem" data-label="Encerrar e voltar à configuração" data-icon="⚙️">⚙️ Encerrar e voltar à configuração</button>
+        <button id="restartBtn" role="menuitem" data-label="Recomeçar partida" data-icon="🔄" title="Recomeçar partida"><span class="mi">🔄</span> <span class="ml">Recomeçar partida</span></button>
+        <button id="lobbyBtn" role="menuitem" data-label="Encerrar e voltar à configuração" data-icon="⚙️" title="Encerrar e voltar à configuração"><span class="mi">⚙️</span> <span class="ml">Encerrar e voltar à configuração</span></button>
         <hr id="menuSep">
-        <button id="logoutBtn" role="menuitem" data-label="Sair da sala" data-icon="🚪">🚪 Sair da sala</button>
+        <button id="logoutBtn" role="menuitem" data-label="Sair da sala" data-icon="🚪" title="Sair da sala"><span class="mi">🚪</span> <span class="ml">Sair da sala</span></button>
       </div>
     </div>
   </header>
@@ -1457,10 +1470,10 @@ $('#copyBtn').onclick=async()=>{const url=roomUrl();
 const menu=$('#menu'),menuBtn=$('#menuBtn');
 const closeMenu=()=>{menu.hidden=true;menuBtn.setAttribute('aria-expanded','false');menu.querySelectorAll('.armed').forEach(disarm)};
 menuBtn.onclick=e=>{e.stopPropagation();const open=menu.hidden;closeMenu();if(open){menu.hidden=false;menuBtn.setAttribute('aria-expanded','true')}};
-document.addEventListener('click',e=>{if(!menu.hidden&&!menu.contains(e.target))closeMenu()});
+document.addEventListener('click',e=>{if(!menu.contains(e.target))closeMenu()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!menu.hidden){closeMenu();menuBtn.focus()}});
-function disarm(b){b.classList.remove('armed');b.textContent=b.dataset.icon+' '+b.dataset.label}
-function armed(id,fn){const b=$(id);b.onclick=e=>{e.stopPropagation();if(!b.classList.contains('armed')){menu.querySelectorAll('.armed').forEach(disarm);b.classList.add('armed');b.textContent='Toque de novo para confirmar';return}closeMenu();fn()}}
+function disarm(b){b.classList.remove('armed');b.replaceChildren(el('span',{class:'mi',text:b.dataset.icon}),' ',el('span',{class:'ml',text:b.dataset.label}))}
+function armed(id,fn){const b=$(id);b.onclick=e=>{e.stopPropagation();if(!b.classList.contains('armed')){menu.querySelectorAll('.armed').forEach(disarm);b.classList.add('armed');b.textContent=matchMedia('(pointer:fine)').matches?'Clique de novo para confirmar':'Toque de novo para confirmar';return}closeMenu();fn()}}
 armed('#restartBtn',()=>act('restart'));
 armed('#lobbyBtn',()=>act('lobby'));
 armed('#logoutBtn',logout);
