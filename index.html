@@ -548,8 +548,6 @@ table.mx{border-collapse:collapse;border-spacing:0}
 @keyframes pageshade{to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.flip{display:none}}
 .flip::after{display:none!important}
-.page .action{transition:padding-bottom .25s ease-out}
-@media (prefers-reduced-motion:reduce){.page .action{transition:none}}
 
 /* ===== setinha: tem mais coisas abaixo ===== */
 .more{position:fixed;right:16px;z-index:40;width:44px;height:44px;display:grid;place-items:center;color:var(--ink);cursor:pointer;
@@ -916,6 +914,7 @@ function onPresence(){
   presence=np;
   const order=Object.values(presence).sort((a,b)=>a.joinedAt-b.joinedAt||(a.id<b.id?-1:1));
   const was=amHost();hostId=order[0].id;
+  if(was&&!amHost())clearTimers();   // deixou de ser anfitrião: os relógios antigos não podem mais avançar o jogo nesta tela
   if(amHost()){
     if(!state)state=freshState();
     if(!was){state.by=myId;rearmTimers()}
@@ -956,8 +955,9 @@ function syncPlayers(){
   pushState();
 }
 function pickSpinner(){const o=onlineOrder();state.turn=(state.turn+1)%o.length;state.spinner=o[state.turn]}
-// na correção, cada jogador (gente, conectado) aperta "Tudo certo"; quando todos apertarem, os pontos valem
-const approvers=rv=>rv.order.filter(p=>!isBot(p)&&presence[p]);
+// na correção, cada jogador (gente) que jogou a rodada aperta "Tudo certo"; quando todos apertarem, os pontos valem.
+// Quem saiu um instante (pesquisa no Google, tela apagada) continua contando: se alguém sumir de vez, o anfitrião usa "Seguir".
+const approvers=rv=>rv.order.filter(p=>!isBot(p));
 function checkAllOk(){if(!amHost()||state?.phase!=='review'||!state.review?.dictDone)return;const rv=state.review,need=approvers(rv);
   if(need.length&&need.every(p=>rv.ok?.[p]))handleAction(myId,'confirm')}
 function nextTurn(){state.round++;pickSpinner();state.phase='spin';state.letter=null;state.review=null;state.stopBy=null;state.spin=null;hostAnswers={};pushState();scheduleBotSpin()}
@@ -1248,7 +1248,13 @@ function updateMore(){const m=$('#more');if(!m)return;
 $('#more').addEventListener('click',()=>scrollBy({top:Math.round(innerHeight*.6),behavior:REDUCED?'auto':'smooth'}));
 addEventListener('scroll',()=>requestAnimationFrame(updateMore),{passive:true});addEventListener('resize',updateMore);
 new ResizeObserver(()=>requestAnimationFrame(updateMore)).observe(document.body);
-function syncRules(){cancelAnimationFrame(rulesRaf);rulesRaf=requestAnimationFrame(alignBg)}
+// quando a rolagem para: encaixa o texto e o botão da barra entre as linhas, de uma vez, sem animação
+let snapT=0;
+function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden||a.classList.contains('plain')||a.classList.contains('below'))return;
+  const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
+  const r=mod(vb-p.getBoundingClientRect().top);
+  if(a.style.paddingBottom!==r+'px'){a.style.paddingBottom=r+'px';alignBg()}}
+function syncRules(){cancelAnimationFrame(rulesRaf);rulesRaf=requestAnimationFrame(alignBg);clearTimeout(snapT);snapT=setTimeout(snapAction,140)}
 $('#action').addEventListener('transitionend',()=>{alignBg();setTimeout(alignBg,30);updateMore()});
 addEventListener('scroll',syncRules,{passive:true});addEventListener('resize',syncRules);visualViewport?.addEventListener('resize',syncRules);
 const FIELD='.page input:not([readonly]),.page select';
@@ -1279,7 +1285,7 @@ function renderAction(){
     inn.append(el('div',{class:'stopnote',id:'stopMsg',role:'status'}));
   }else if(ph==='review'){
     const rv=state.review,need=rv?approvers(rv):[],done=need.filter(p=>rv.ok?.[p]),miss=need.filter(p=>!rv.ok?.[p]);
-    const who=ids=>ids.map(p=>p===myId?'você':nameOf(p)).join(', ');
+    const who=ids=>ids.map(p=>p===myId?'você':nameOf(p)+(presence[p]?'':' (fora)')).join(', ');
     const go=el('button',{class:'btn',text:'Seguir ➜',title:'Seguir sem esperar todo mundo',onclick:()=>act('confirm')});
     if(H&&rv){   // anfitrião: sempre pode seguir, mesmo sem todos darem tudo certo
       const mine=!need.includes(myId)?null:!rv.ok?.[myId]?el('button',{class:'btn ghost',text:`Tudo certo ✓ (${done.length}/${need.length})`,onclick:()=>act('ok',{val:true})})
