@@ -705,6 +705,10 @@ html,body{overflow-x:clip}
 }
 /* tela inicial: botão de entrar uma linha mais abaixo */
 #enterBtn{margin-top:var(--ln)}
+/* palavra na correção: link discreto para pesquisar no Google */
+a.gq{color:inherit;text-decoration:none;cursor:pointer}
+a.gq:hover,a.gq:focus-visible{text-decoration:underline dotted 1.5px}
+.mx td.bad a.gq{text-decoration:line-through 2px var(--redpen)}
 </style>
 </head>
 <body>
@@ -1380,11 +1384,14 @@ function examplesFor(cat,letter){const raw=EXAMPLES[norm(cat)];if(!raw)return[];
 let exI=0;setInterval(()=>{const els=document.querySelectorAll('.ex[data-ex]');if(!els.length)return;exI++;
   els.forEach(e=>{const l=e.dataset.ex.split(',');const t=e.querySelector('.exw');if(!t)return;t.classList.add('out');
     setTimeout(()=>{t.textContent=l[exI%l.length];t.classList.remove('out')},220)})},1800);
+// na dúvida: pesquisa a palavra junto com o tema no Google
+// "CEP (Cidade, Estado, País)" vira "Cidade, Estado, País": o que está entre parênteses explica melhor o tema
+const gsearch=(w,cat)=>'https://www.google.com/search?q='+encodeURIComponent(`${core(w)} ${cat.match(/\(([^)]+)\)/)?.[1]||cat}`);
 function reviewView(){
   const rv=state.review,f=el('div');if(!rv)return f;
   const res=computePoints(rv,state.config);
   f.append(el('h1',{text:`Correção da letra ${rv.letter}`}),
-    el('p',{class:'muted',text:'Toque em ✓ ou ✗ nas palavras dos outros.'}),
+    el('p',{class:'muted',text:'Toque em ✓ ou ✗ nas palavras dos outros. Na dúvida, toque na palavra para pesquisar no Google.'}),
     el('p',{class:'legend'},el('span',{class:'lg'},el('span',{class:'mark ok',text:'✓'}),'vale'),el('span',{class:'lg'},el('span',{class:'mark no',text:'✗'}),'não vale'),
       el('span',{class:'lg'},el('span',{class:'badge',text:'×2'}),'repetida'),el('span',{class:'lg'},el('span',{class:'badge q',text:'?'}),'fora do dicionário')));
   if(!rv.dictDone)f.append(el('p',{},el('span',{class:'note',text:'Verificando palavras no dicionário…'})));
@@ -1398,7 +1405,7 @@ function reviewView(){
     for(const pid of rv.order){const c=rv.rows[pid][cat],s=res.cell[pid][cat];
       // célula em 3 colunas fixas: palavra | pontos | votos — assim os pontos ficam alinhados e o total cai embaixo deles
       const exs=!c.w?examplesFor(cat,rv.letter):[];
-      const wb=el('span',{class:'wb'},exs.length?el('span',{class:'ex','data-ex':exs.join(','),title:'Exemplos: '+exs.join(', ')},el('span',{class:'exl',text:'ex.'}),el('span',{class:'exw',text:exs[exI%exs.length]})):el('span',{class:'w',title:c.w||'',text:c.w||'—'}));
+      const wb=el('span',{class:'wb'},exs.length?el('span',{class:'ex','data-ex':exs.join(','),title:'Exemplos: '+exs.join(', ')},el('span',{class:'exl',text:'ex.'}),el('span',{class:'exw',text:exs[exI%exs.length]})):c.w?el('a',{class:'w gq',href:gsearch(c.w,cat),target:'_blank',rel:'noopener',title:`Pesquisar “${c.w}” (${cat}) no Google`,text:c.w}):el('span',{class:'w',text:'—'}));
       if(s.shared>1)wb.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
       if(s.why){const dic=s.why==='fora do dicionário';const wait=s.why==='verificando…';wb.append(el('span',{class:'badge'+(dic?' q':wait?' w':' x'),title:s.why,text:dic?'?':wait?'…':'!'}))}
       const pts=el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts});
