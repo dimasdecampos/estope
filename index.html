@@ -1280,12 +1280,16 @@ function renderAction(){
   }else if(ph==='review'){
     const rv=state.review,need=rv?approvers(rv):[],done=need.filter(p=>rv.ok?.[p]),miss=need.filter(p=>!rv.ok?.[p]);
     const who=ids=>ids.map(p=>p===myId?'você':nameOf(p)).join(', ');
-    if(!rv||!rv.dictDone)inn.append(el('p',{class:'hint',text:'Conferindo as palavras no dicionário…'}));
+    const go=el('button',{class:'btn',text:'Seguir ➜',title:'Seguir sem esperar todo mundo',onclick:()=>act('confirm')});
+    if(H&&rv){   // anfitrião: sempre pode seguir, mesmo sem todos darem tudo certo
+      const mine=!need.includes(myId)?null:!rv.ok?.[myId]?el('button',{class:'btn ghost',text:`Tudo certo ✓ (${done.length}/${need.length})`,onclick:()=>act('ok',{val:true})})
+        :el('button',{class:'btn ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})});
+      const others=miss.filter(p=>p!==myId);
+      inn.append(el('p',{class:'hint',text:!rv.dictDone?'Conferindo as palavras no dicionário…':others.length?`Esperando ${who(others)}`:'Todos deram tudo certo'}),el('div',{class:'two'},mine,go));
+    }
+    else if(!rv||!rv.dictDone)inn.append(el('p',{class:'hint',text:'Conferindo as palavras no dicionário…'}));
     else if(!need.includes(myId))inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)} dar tudo certo`}));
     else if(!rv.ok?.[myId])inn.append(el('button',{class:'btn wide',text:`Tudo certo ✓ (${done.length} de ${need.length})`,onclick:()=>act('ok',{val:true})}));
-    else if(H)inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)}`}),el('div',{class:'two'},   // anfitrião pode destravar se alguém sumiu
-      el('button',{class:'btn ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})}),
-      el('button',{class:'btn',text:'Seguir',title:'Seguir sem esperar',onclick:()=>act('confirm')})));
     else inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)}`}),el('button',{class:'btn wide ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})}));
   }else if(ph==='scores'){
     if(H){const o=onlineOrder();const nx=o[(state.turn+1)%o.length];inn.append(el('button',{class:'btn wide',text:`Próxima rodada (${nameOf(nx)} sorteia)`,onclick:()=>act('next')}))}
