@@ -663,6 +663,18 @@ table.mx{border-collapse:collapse;border-spacing:0}
   border:6px solid var(--redpen);border-radius:52% 46% 55% 44%/48% 55% 43% 52%;background:rgba(255,255,255,.92);box-shadow:0 10px 40px rgba(20,30,45,.18);
   animation:bigL 1.7s cubic-bezier(.3,1.4,.5,1) forwards}
 @keyframes bigL{0%{transform:scale(.2) rotate(-25deg);opacity:0}25%{transform:scale(1.08) rotate(4deg);opacity:1}40%{transform:scale(1) rotate(-2deg)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.6) translateY(-30vh)}}
+/* ESTOPE! no meio da tela: a mão bate e o carimbo aparece (não bloqueia quem ainda está escrevendo) */
+.bigstop{position:fixed;inset:0;z-index:70;display:grid;place-items:center;pointer-events:none}
+.bigstop .card{display:grid;justify-items:center;gap:2px;padding:18px 34px 16px;background:rgba(255,255,255,.94);border:5px solid var(--redpen);
+  border-radius:255px 18px 225px 18px/18px 225px 18px 255px;box-shadow:0 10px 40px rgba(20,30,45,.2);animation:stopIn 1.9s ease-out forwards}
+.bigstop .hand{font-size:min(22vw,96px);line-height:1;animation:slap .45s cubic-bezier(.2,1.6,.4,1) both}
+.bigstop .word{font-family:var(--hand);font-size:min(16vw,76px);line-height:1;color:var(--redpen);letter-spacing:.04em;transform:rotate(-4deg);animation:stamp .35s .2s cubic-bezier(.3,1.6,.5,1) both}
+.bigstop .who{font-family:var(--hand);font-size:min(7vw,28px);line-height:1.2;color:var(--ink);white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis}
+@keyframes slap{0%{transform:translateY(-60px) scale(1.8) rotate(-20deg);opacity:0}60%{transform:translateY(4px) scale(.92) rotate(4deg);opacity:1}100%{transform:none}}
+@keyframes stamp{0%{transform:scale(2.2) rotate(-12deg);opacity:0}100%{transform:scale(1) rotate(-4deg);opacity:1}}
+@keyframes stopIn{0%{transform:scale(.7);opacity:0}12%{transform:scale(1.04);opacity:1}20%{transform:scale(1)}82%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9)}}
+@media (prefers-reduced-motion:reduce){.bigstop .hand,.bigstop .word{animation:none}.bigstop .card{animation:stopFade 1.9s linear forwards}}
+@keyframes stopFade{0%,85%{opacity:1}100%{opacity:0}}
 /* confete */
 .confetti{position:fixed;inset:0;z-index:65;pointer-events:none;overflow:hidden}
 .confetti i{position:absolute;top:-20px;width:8px;height:14px;font-style:normal;font-size:18px;line-height:1;animation:fall linear forwards}
@@ -1116,7 +1128,7 @@ function onStateChange(prev){
     locked=false;playStartLocal=Date.now();
     setTimeout(()=>{const i=document.querySelector('.fld input:not(:disabled)');if(i&&state?.phase==='play')i.focus({preventScroll:true})},250)}
   if(ph==='stopping'&&p!=='stopping'){stopLocalAt=Date.now()+3000;sendAnswers();
-    toast(state.stopBy?`ESTOPE de ${nameOf(state.stopBy)}!`:'Acabou o tempo!');
+    bigStop(state.stopBy);
     setTimeout(()=>{locked=true;sendAnswers();updateSheet()},3000)}
   if(ph==='end'&&p&&p!=='end'){setTimeout(confetti,700);beep(523,.12,'triangle',.07);setTimeout(()=>beep(659,.12,'triangle',.07),140);setTimeout(()=>beep(784,.25,'triangle',.07),280)}
   keepAwake(!['lobby','end'].includes(ph));
@@ -1460,6 +1472,9 @@ function shuffleGrid(g){
   items.forEach(n=>{const a=before.get(n),b=n.getBoundingClientRect();const dx=a.left-b.left,dy=a.top-b.top;
     if(dx||dy){n.style.transition='none';n.style.transform=`translate(${dx}px,${dy}px)`;requestAnimationFrame(()=>{n.style.transition='transform .16s ease-out';n.style.transform=''})}});
 }
+function bigStop(by){const who=by?(by===myId?'Você deu ESTOPE!':`de ${nameOf(by)}`):'Acabou o tempo!';
+  const b=el('div',{class:'bigstop',role:'status','aria-live':'assertive'},el('div',{class:'card'},el('span',{class:'hand','aria-hidden':'true',text:by?'✋':'⏰'}),el('span',{class:'word',text:'ESTOPE!'}),el('span',{class:'who',text:who})));
+  document.querySelectorAll('.bigstop').forEach(x=>x.remove());document.body.append(b);setTimeout(()=>b.remove(),1950)}
 function bigLetter(L){if(REDUCED)return;const b=el('div',{class:'bigletter','aria-hidden':'true'},el('span',{text:L}));document.body.append(b);setTimeout(()=>b.remove(),1700)}
 function confetti(){if(REDUCED)return;const box=el('div',{class:'confetti','aria-hidden':'true'});const C=['#E0403A','#F08A24','#F2C230','#1C9A5E','#2347D6','#D94C9C'];
   for(let i=0;i<70;i++){const p=el('i');const sh=i%3;p.style.cssText=`left:${Math.random()*100}%;background:${sh===2?'none':C[i%6]};color:${C[i%6]};animation-delay:${Math.random()*1.2}s;animation-duration:${2.4+Math.random()*1.8}s;--dx:${(Math.random()*2-1)*90}px;--r:${Math.random()*720-360}deg;${sh===1?'border-radius:50%;width:9px;height:9px;':''}`;if(sh===2)p.textContent='★';box.append(p)}
