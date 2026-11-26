@@ -744,6 +744,11 @@ a.gq:hover,a.gq:focus-visible{text-decoration:underline dotted 1.5px}
   .more svg{width:13px;height:16px}
   .more::before{content:"";position:absolute;inset:-10px}
 }
+/* celular: barra de botões fixa no pé da tela (left/width vêm do JS, placeAction) */
+@media (max-width:820px){.page .action.fix{position:fixed;bottom:0;z-index:15;padding-bottom:max(6px,env(safe-area-inset-bottom))!important;box-shadow:0 -7px 10px -5px rgba(34,40,58,.28)}
+  .page .action.fix .in>*:last-child{margin-bottom:0}
+  .page .action.fix .in>.btn:last-child{margin-bottom:3px}
+  .page .action.fix .stopnote{margin-bottom:4px}}
 /* aviso amarelo no celular: desce para a linha vazia abaixo dos jogadores, sem cobrir os nomes */
 @media (max-width:820px){#toast{top:calc(var(--bar) + env(safe-area-inset-top) + 100px);padding:4px 14px;line-height:1.25}}
 </style>
@@ -1279,10 +1284,22 @@ addEventListener('scroll',()=>requestAnimationFrame(updateMore),{passive:true});
 new ResizeObserver(()=>requestAnimationFrame(updateMore)).observe(document.body);
 // quando a rolagem para: encaixa o texto e o botão da barra entre as linhas, de uma vez, sem animação
 let snapT=0;
-function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden||a.classList.contains('plain')||a.classList.contains('below'))return;
+function snapAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p||$('#app').hidden||a.classList.contains('plain')||a.classList.contains('below')||a.classList.contains('fix'))return;
   const vb=(visualViewport?visualViewport.height+visualViewport.offsetTop:innerHeight);
   const r=mod(vb-p.getBoundingClientRect().top);
   if(a.style.paddingBottom!==r+'px'){a.style.paddingBottom=r+'px';alignBg()}}
+/* celular: barra de botões fixa no pé da tela, igual à do topo — nunca se mexe; só as linhas do caderno passam por trás.
+   Ocupa a largura do texto da folha e a folha ganha espaço no fim para nada ficar escondido atrás dela. */
+function placeAction(){const a=$('#action'),p=a&&a.closest('.page');if(!a||!p)return;
+  const fix=matchMedia('(max-width:820px)').matches&&!$('#app').hidden&&!a.classList.contains('plain')&&!a.classList.contains('below')&&a.offsetHeight>0;
+  a.classList.toggle('fix',fix);
+  if(!fix){p.style.paddingBottom='';a.style.left=a.style.width='';return}
+  a.style.paddingBottom='';
+  const r=p.getBoundingClientRect(),cs=getComputedStyle(p),pl=parseFloat(cs.paddingLeft),pr=parseFloat(cs.paddingRight);
+  a.style.left=(r.left+pl)+'px';a.style.width=(r.width-pl-pr)+'px';
+  p.style.paddingBottom=Math.ceil(a.offsetHeight/LN)*LN+'px';alignBg()}
+addEventListener('resize',()=>requestAnimationFrame(placeAction));
+new ResizeObserver(()=>requestAnimationFrame(placeAction)).observe($('#action'));
 function syncRules(){cancelAnimationFrame(rulesRaf);rulesRaf=requestAnimationFrame(alignBg);clearTimeout(snapT);snapT=setTimeout(snapAction,140)}
 $('#action').addEventListener('transitionend',()=>{alignBg();setTimeout(alignBg,30);updateMore()});
 addEventListener('scroll',syncRules,{passive:true});addEventListener('resize',syncRules);visualViewport?.addEventListener('resize',syncRules);
@@ -1338,7 +1355,7 @@ function renderAction(){
   // só um aviso (sem botão): fica escrito direto na linha da folha, sem faixa presa embaixo
   const plain=!inn.querySelector('button,.stopnote');A.classList.toggle('plain',plain);const below=!plain&&['review','scores','end'].includes(ph)&&matchMedia('(hover:hover) and (pointer:fine)').matches;
   A.classList.toggle('below',below);if(plain||below){A.style.paddingBottom='';A.style.backgroundPosition=''}
-  A.append(inn);updateSheet();syncRules();requestAnimationFrame(updateMore);
+  A.append(inn);placeAction();updateSheet();syncRules();requestAnimationFrame(updateMore);
 }
 
 /* ---------- telas ---------- */
@@ -1454,6 +1471,10 @@ let exI=0;setInterval(()=>{const els=document.querySelectorAll('.ex[data-ex]');i
 // na dúvida: pesquisa a palavra junto com o tema no Google
 // "CEP (Cidade, Estado, País)" vira "Cidade, Estado, País": o que está entre parênteses explica melhor o tema
 const gsearch=(w,cat)=>'https://www.google.com/search?q='+encodeURIComponent(`${core(w)} ${cat.match(/\(([^)]+)\)/)?.[1]||cat}`);
+// sempre em nova aba (no celular, sobretudo com o site salvo na tela inicial, target=_blank às vezes abre na mesma janela e tira a pessoa do jogo)
+document.addEventListener('click',e=>{const a=e.target.closest?.('a.gq');if(!a||e.defaultPrevented)return;
+  const w=window.open(a.href,'_blank');if(!w)return;   // bloqueado: deixa o link seguir o caminho normal (target=_blank)
+  e.preventDefault();try{w.opener=null}catch{}});
 function reviewView(){
   const rv=state.review,f=el('div');if(!rv)return f;
   const res=computePoints(rv,state.config);
