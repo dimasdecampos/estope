@@ -719,6 +719,27 @@ html,body{overflow-x:clip}
 a.gq{color:inherit;text-decoration:none;cursor:pointer}
 a.gq:hover,a.gq:focus-visible{text-decoration:underline dotted 1.5px}
 .mx td.bad a.gq{text-decoration:line-through 2px var(--redpen)}
+
+/* ===== ajustes de celular ===== */
+/* barra de baixo: sombra leve em cima para separar do que rola por trás */
+.page .action:not(.plain):not(.below){box-shadow:0 -9px 10px -9px rgba(34,40,58,.3)}
+/* anfitrião na correção ("Tudo certo" + "Seguir"): um embaixo do outro, cada um numa linha da pauta */
+@media (max-width:520px){
+  .page .action .two{flex-direction:column;height:auto;gap:0;align-items:stretch}
+  .page .action .two .btn{width:100%;flex:none}
+}
+/* nome do tema legível no celular: coluna do tema mais larga e letra maior (na folha e na correção) */
+@media (max-width:520px){
+  .fld{grid-template-columns:40% minmax(0,1fr);column-gap:6px}
+  .fld>span{font-size:19px}
+}
+/* temas na configuração: área de toque do tamanho da linha e ✕ afastado do ↑ */
+.cats li{gap:4px}
+.cats li button{width:40px;height:40px}
+.cats li button.rm{margin-left:8px}
+.chip.undo{border-style:solid;background:var(--postit);color:var(--ink);font-family:var(--hand);font-size:19px;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* aviso amarelo no celular: desce para a linha vazia abaixo dos jogadores, sem cobrir os nomes */
+@media (max-width:820px){#toast{top:calc(var(--bar) + env(safe-area-inset-top) + 100px);padding:4px 14px;line-height:1.25}}
 </style>
 </head>
 <body>
@@ -806,6 +827,7 @@ function el(tag,props={},...kids){
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
 const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
 const titleCase = s => s.split(' ').map(w=>w.length>2?cap(w):w).join(' ');
+let undoCat=null;   // último tema removido na configuração (para desfazer)
 let toastT; function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
 let AC; function beep(f=600,d=.08,type='square',vol=.05){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.value=vol;o.connect(g);g.connect(AC.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.stop(AC.currentTime+d)}catch{}}
 function inkFor(hex){const h=hex.replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return (r*299+g*587+b*114)/1000>150?'#172033':'#FFFFFF'}
@@ -1210,7 +1232,8 @@ function renderStage(){
 }
 // tema comprido: diminui a letra até caber nas 2 linhas, sem reticências
 function fitCat(e,min=12){e.style.fontSize='';let s=parseFloat(getComputedStyle(e).fontSize);
-  while(e.scrollHeight>e.clientHeight+1&&s>min){s--;e.style.fontSize=s+'px'}}
+  // folga de meia letra: a fonte manuscrita passa uns pixels da caixa mesmo quando cabe (antes "Nome" encolhia até 13px)
+  while(e.scrollHeight>e.clientHeight+s*.5&&s>min){s--;e.style.fontSize=s+'px'}}
 // tabela larga no PC: setas, barra visível e arrastar com o mouse
 function mxBox(tbl){
   const w=el('div',{class:'mxwrap'},tbl),hint=el('span',{class:'hint',text:'arraste ou use as setas'});
@@ -1262,7 +1285,8 @@ const FIELD='.page input:not([readonly]),.page select';
 const smallScreen=()=>matchMedia('(max-width:820px)').matches;let topT=[];
 function bringToTop(inp){if(!smallScreen())return;const row=inp.closest('.fld,li,label,.row,.invite')||inp;
   const first=row.matches('.fld')&&row===document.querySelector('.fld');   // 1º tema: sobe 2 linhas a mais para a letra circulada aparecer
-  const target=()=>{const bar=document.querySelector('.bar').getBoundingClientRect().bottom;return Math.max(0,row.getBoundingClientRect().top+scrollY-bar-6-(first?80:0))};
+  // deixa 1 linha acima à vista (o tema anterior), para não perder o contexto com o teclado aberto
+  const target=()=>{const bar=document.querySelector('.bar').getBoundingClientRect().bottom;return Math.max(0,row.getBoundingClientRect().top+scrollY-bar-6-(first?80:LN))};
   topT.forEach(clearTimeout);
   topT=[setTimeout(()=>scrollTo({top:target(),behavior:REDUCED?'auto':'smooth'}),60),
     // depois que o teclado termina de abrir: só corrige se ficou fora do lugar, sem animação (evita briga de rolagens)
@@ -1291,14 +1315,15 @@ function renderAction(){
       const mine=!need.includes(myId)?null:!rv.ok?.[myId]?el('button',{class:'btn ghost',text:`Tudo certo ✓ (${done.length}/${need.length})`,onclick:()=>act('ok',{val:true})})
         :el('button',{class:'btn ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})});
       const others=miss.filter(p=>p!==myId);
-      inn.append(el('p',{class:'hint',text:!rv.dictDone?'Conferindo as palavras no dicionário…':others.length?`Esperando ${who(others)}`:'Todos deram tudo certo'}),el('div',{class:'two'},mine,go));
+      inn.append(el('p',{class:'hint',text:!rv.dictDone?'Conferindo as palavras no dicionário…':others.length?`Esperando ${who(others)}`:need.includes(myId)&&!rv.ok?.[myId]?'Só falta você':'Todos deram tudo certo'}),el('div',{class:'two'},mine,go));
     }
     else if(!rv||!rv.dictDone)inn.append(el('p',{class:'hint',text:'Conferindo as palavras no dicionário…'}));
     else if(!need.includes(myId))inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)} dar tudo certo`}));
     else if(!rv.ok?.[myId])inn.append(el('button',{class:'btn wide',text:`Tudo certo ✓ (${done.length} de ${need.length})`,onclick:()=>act('ok',{val:true})}));
     else inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)}`}),el('button',{class:'btn wide ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})}));
   }else if(ph==='scores'){
-    if(H){const o=onlineOrder();const nx=o[(state.turn+1)%o.length];inn.append(el('button',{class:'btn wide',text:`Próxima rodada (${nameOf(nx)} sorteia)`,onclick:()=>act('next')}))}
+    if(H){const o=onlineOrder();const nx=o[(state.turn+1)%o.length];
+      inn.append(el('p',{class:'hint',text:nx===myId?'Você sorteia a próxima letra':`${nameOf(nx)} sorteia a próxima letra`}),el('button',{class:'btn wide',text:'Próxima rodada',onclick:()=>act('next')}))}
     else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(leaderId())} seguir`}));
   }else if(ph==='end'){
     if(H)inn.append(el('div',{class:'two'},el('button',{class:'btn ghost',text:'Mudar temas',onclick:()=>act('lobby')}),el('button',{class:'btn',text:'Jogar de novo',onclick:()=>act('start')})));
@@ -1334,7 +1359,11 @@ function lobbyView(){
   const temas=el('section',{class:'block'},el('h2',{},'Temas ',el('small',{text:c.cats.length+' de 16'})));
   temas.append(el('ul',{class:'cats'},c.cats.map((x,i)=>el('li',{},el('span',{text:x}),
     i>0?el('button',{'aria-label':'Subir '+x,title:'Subir',text:'↑',onclick:()=>{const a=[...c.cats];[a[i-1],a[i]]=[a[i],a[i-1]];upd({cats:a})}}):null,
-    el('button',{'aria-label':'Remover '+x,title:'Remover',text:'✕',onclick:()=>upd({cats:c.cats.filter((_,j)=>j!==i)})})))));
+    el('button',{class:'rm','aria-label':'Remover '+x,title:'Remover',text:'✕',onclick:()=>{undoCat={x,i};upd({cats:c.cats.filter((_,j)=>j!==i)})}})))));
+  // desfazer a última remoção (o ✕ fica perto do ↑ no celular)
+  if(undoCat&&!c.cats.includes(undoCat.x)&&c.cats.length<16){const u=undoCat;
+    temas.append(el('div',{class:'row'},el('button',{class:'chip undo',text:`↶ Desfazer: voltar “${u.x}”`,onclick:()=>{undoCat=null;const a=[...c.cats];a.splice(Math.min(u.i,a.length),0,u.x);upd({cats:a})}})))}
+  else undoCat=null;
   const add=el('input',{class:'inp',placeholder:'Novo tema',maxlength:30,'aria-label':'Novo tema',enterkeyhint:'done'});
   const doAdd=()=>{const v=add.value.trim();if(v&&!c.cats.includes(v)){upd({cats:[...c.cats,v]});setTimeout(()=>{const n=document.querySelector('.stage .inp');n&&n.focus()},60)}};
   add.addEventListener('keydown',e=>{if(e.key==='Enter')doAdd()});
