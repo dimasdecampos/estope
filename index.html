@@ -869,10 +869,12 @@ let presence={};
 let hostId=null;
 let state=null;
 const amHost=()=>hostId===myId;
-// Dimas, Duda e Mado sempre têm os poderes de anfitrião (começar, configurar, seguir, recomeçar).
-// O "anfitrião técnico" (quem guarda o jogo) continua sendo quem chegou primeiro.
+// Dimas, Duda ou Mado na sala: o primeiro deles que entrou é o anfitrião (começar, configurar, seguir, recomeçar).
+// Sem nenhum deles, é quem chegou primeiro. O "anfitrião técnico" (quem guarda o jogo) continua sendo quem chegou primeiro.
 const LEADERS=['dimas','duda','mado'];
-const isLeader=id=>id===hostId||(!!presence[id]&&!isBot(id)&&LEADERS.includes(norm(presence[id].name)));
+function leaderId(){const ls=Object.values(presence).filter(m=>!isBot(m.id)&&LEADERS.includes(norm(m.name))).sort((a,b)=>a.joinedAt-b.joinedAt||(a.id<b.id?-1:1));
+  return ls[0]?.id||hostId}
+const isLeader=id=>id===leaderId();
 const iLead=()=>isLeader(myId);
 const myMeta=()=>({id:myId,name:me.name,shirt:me.shirt,skin:me.skin,joinedAt});
 function send(event,payload){if(ch&&connected)ch.send({type:'broadcast',event,payload}).catch(()=>{})}
@@ -1189,7 +1191,7 @@ function renderStage(){
   const ph=state.phase;let key;
   if(['play','stopping'].includes(ph))key='sheet:'+state.game+':'+state.round+state.letter+(ph==='stopping'?'s':'');
   else if(ph==='review')key='rv:'+state.review?.id+JSON.stringify(state.review?.votes)+JSON.stringify(state.review?.dict)+JSON.stringify(state.review?.ok||{})+hostId;
-  else if(ph==='lobby')key='lb:'+JSON.stringify(state.config)+JSON.stringify(state.bots||{})+hostId+iLead();
+  else if(ph==='lobby')key='lb:'+JSON.stringify(state.config)+JSON.stringify(state.bots||{})+hostId+leaderId()+iLead();
   else if(ph==='spin'||ph==='spinning')key=ph+state.round+state.spinner+hostId+(state.spin?.id||'');
   else key=ph+state.round+hostId+Object.keys(presence).length+JSON.stringify(state.last);
   if(key===stageKey){updateSheet();return}stageKey=key;
@@ -1263,7 +1265,7 @@ function renderAction(){
   const ph=state.phase,H=iLead(),inn=el('div',{class:'in'});
   if(ph==='lobby'){
     if(H)inn.append(el('button',{class:'btn wide',text:'Começar partida',onclick:()=>act('start')}));
-    else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} começar`}));
+    else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(leaderId())} começar`}));
   }else if(ph==='spin'){
     if(state.spinner===myId)inn.append(el('button',{class:'btn wide',text:'Sortear letra',onclick:()=>act('spin')}));
     else inn.append(el('p',{class:'hint',text:`${nameOf(state.spinner)} vai sortear a letra`}));
@@ -1284,10 +1286,10 @@ function renderAction(){
     else inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)}`}),el('button',{class:'btn wide ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})}));
   }else if(ph==='scores'){
     if(H){const o=onlineOrder();const nx=o[(state.turn+1)%o.length];inn.append(el('button',{class:'btn wide',text:`Próxima rodada (${nameOf(nx)} sorteia)`,onclick:()=>act('next')}))}
-    else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} seguir`}));
+    else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(leaderId())} seguir`}));
   }else if(ph==='end'){
     if(H)inn.append(el('div',{class:'two'},el('button',{class:'btn ghost',text:'Mudar temas',onclick:()=>act('lobby')}),el('button',{class:'btn',text:'Jogar de novo',onclick:()=>act('start')})));
-    else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} decidir a próxima`}));
+    else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(leaderId())} decidir a próxima`}));
   }
   // só um aviso (sem botão): fica escrito direto na linha da folha, sem faixa presa embaixo
   const plain=!inn.querySelector('button,.stopnote');A.classList.toggle('plain',plain);const below=!plain&&['review','scores','end'].includes(ph)&&matchMedia('(hover:hover) and (pointer:fine)').matches;
@@ -1301,7 +1303,7 @@ function inviteBox(){const url=roomUrl();
 function lobbyView(){
   const c=state.config,f=el('div');
   if(!iLead()){
-    f.append(el('h1',{text:'Sala de espera'}),el('p',{class:'muted',text:`${nameOf(hostId)} está configurando a partida.`}));
+    f.append(el('h1',{text:'Sala de espera'}),el('p',{class:'muted',text:`${nameOf(leaderId())} está configurando a partida.`}));
     f.append(el('section',{class:'block'},el('h2',{},'Temas ',el('small',{text:c.cats.length})),el('div',{class:'chips'},c.cats.map(x=>el('span',{class:'chip',text:x})))));
     f.append(el('section',{class:'block'},el('h2',{text:'Regras'}),el('ul',{class:'rules'},
       el('li',{},'Rodadas',el('b',{class:'num',text:c.rounds})),
