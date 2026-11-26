@@ -869,6 +869,11 @@ let presence={};
 let hostId=null;
 let state=null;
 const amHost=()=>hostId===myId;
+// Dimas, Duda e Mado sempre têm os poderes de anfitrião (começar, configurar, seguir, recomeçar).
+// O "anfitrião técnico" (quem guarda o jogo) continua sendo quem chegou primeiro.
+const LEADERS=['dimas','duda','mado'];
+const isLeader=id=>id===hostId||(!!presence[id]&&!isBot(id)&&LEADERS.includes(norm(presence[id].name)));
+const iLead=()=>isLeader(myId);
 const myMeta=()=>({id:myId,name:me.name,shirt:me.shirt,skin:me.skin,joinedAt});
 function send(event,payload){if(ch&&connected)ch.send({type:'broadcast',event,payload}).catch(()=>{})}
 async function connect(){
@@ -964,7 +969,7 @@ function wheelLetters(cfg){const ex=new Set((cfg?.exclude||'').toUpperCase().rep
 function sanitizeAnswers(a){const o={};if(!a||typeof a!=='object')return o;for(const c of state.config.cats){const v=a[c];if(typeof v==='string')o[c]=v.slice(0,40)}return o}
 function resetGame(){for(const id in state.players)state.players[id].score=0;state.round=0;state.used=[];state.turn=-1;state.last=null;state.review=null;state.spin=null;state.letter=null;state.stopBy=null;state.game=(state.game||0)+1;state.history=[]}
 function handleAction(from,type,d){
-  if(!state)return;const H=from===myId;
+  if(!state)return;const H=isLeader(from);
   switch(type){
   case 'config': if(!H||state.phase!=='lobby')return;{
       const c=d.config||{};const cats=(Array.isArray(c.cats)?c.cats:[]).map(s=>String(s).trim().slice(0,30)).filter(Boolean);
@@ -1146,7 +1151,7 @@ function barTimeText(){if(!state||state.phase!=='play'||!state.playDur||!state.l
 function renderBar(){
   const ph=state?.phase;
   $('#roundInfo').textContent=barTimeText()||(!state?'Conectando…':ph==='lobby'?'Sala de espera':ph==='end'?'Fim de jogo':(ph==='play'||ph==='stopping')&&state.letter?`Letra ${state.letter} (${state.round}/${state.config.rounds})`:`Rodada ${state.round} de ${state.config.rounds}`);
-  const hostMenu=amHost()&&state&&ph!=='lobby';
+  const hostMenu=iLead()&&state&&ph!=='lobby';
   $('#restartBtn').hidden=$('#lobbyBtn').hidden=$('#menuSep').hidden=!hostMenu;
 }
 function renderPlayers(){
@@ -1156,7 +1161,7 @@ function renderPlayers(){
     .filter(p=>p.on||p.score>0).sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name));
   for(const p of list)box.append(el('div',{class:'pl'+(p.on?'':' off')+(p.id===myId?' me':''),title:p.name},
     avatar(p.name,p.color),el('span',{text:p.name}),
-    p.id===hostId?el('span',{class:'tag',title:'Anfitrião','aria-label':'anfitrião',text:'👑'}):null,
+    isLeader(p.id)?el('span',{class:'tag',title:'Anfitrião','aria-label':'anfitrião',text:'👑'}):null,
     isBot(p.id)?el('span',{class:'tag',title:'Robô',text:'🤖'}):null,
     (state?.phase==='spin'||state?.phase==='spinning')&&state.spinner===p.id?el('span',{class:'tag',title:'Sorteando',text:'🎯'}):null,
     el('span',{class:'sc num',text:p.score})));
@@ -1184,7 +1189,7 @@ function renderStage(){
   const ph=state.phase;let key;
   if(['play','stopping'].includes(ph))key='sheet:'+state.game+':'+state.round+state.letter+(ph==='stopping'?'s':'');
   else if(ph==='review')key='rv:'+state.review?.id+JSON.stringify(state.review?.votes)+JSON.stringify(state.review?.dict)+JSON.stringify(state.review?.ok||{})+hostId;
-  else if(ph==='lobby')key='lb:'+JSON.stringify(state.config)+JSON.stringify(state.bots||{})+hostId+amHost();
+  else if(ph==='lobby')key='lb:'+JSON.stringify(state.config)+JSON.stringify(state.bots||{})+hostId+iLead();
   else if(ph==='spin'||ph==='spinning')key=ph+state.round+state.spinner+hostId+(state.spin?.id||'');
   else key=ph+state.round+hostId+Object.keys(presence).length+JSON.stringify(state.last);
   if(key===stageKey){updateSheet();return}stageKey=key;
@@ -1255,7 +1260,7 @@ document.addEventListener('focusin',e=>{if(!e.target.matches?.(FIELD))return;doc
 document.addEventListener('focusout',e=>{if(!e.target.matches?.(FIELD))return;setTimeout(()=>{if(!document.activeElement?.matches?.(FIELD)){document.body.classList.remove('typing');syncRules();updateMore()}},150)});
 function renderAction(){
   const A=$('#action');A.innerHTML='';if(!state)return;
-  const ph=state.phase,H=amHost(),inn=el('div',{class:'in'});
+  const ph=state.phase,H=iLead(),inn=el('div',{class:'in'});
   if(ph==='lobby'){
     if(H)inn.append(el('button',{class:'btn wide',text:'Começar partida',onclick:()=>act('start')}));
     else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} começar`}));
@@ -1295,7 +1300,7 @@ function inviteBox(){const url=roomUrl();
   return el('div',{class:'invite'},el('input',{value:url,readonly:true,'aria-label':'Link da sala',onfocus:e=>e.target.select()}),el('button',{class:'btn small',text:'Copiar link',onclick:()=>$('#copyBtn').click()}))}
 function lobbyView(){
   const c=state.config,f=el('div');
-  if(!amHost()){
+  if(!iLead()){
     f.append(el('h1',{text:'Sala de espera'}),el('p',{class:'muted',text:`${nameOf(hostId)} está configurando a partida.`}));
     f.append(el('section',{class:'block'},el('h2',{},'Temas ',el('small',{text:c.cats.length})),el('div',{class:'chips'},c.cats.map(x=>el('span',{class:'chip',text:x})))));
     f.append(el('section',{class:'block'},el('h2',{text:'Regras'}),el('ul',{class:'rules'},
