@@ -554,6 +554,9 @@ table.mx{border-collapse:collapse;border-spacing:0}
 .ex{display:inline-flex;align-items:baseline;gap:4px;min-width:0;color:#8C97AA;font-family:var(--hand)}
 .ex .exl{font-size:15px}
 .ex .exw{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .22s,transform .22s}
+.mx .ln{grid-template-columns:minmax(max-content,1fr) 30px 52px!important}   /* palavra inteira: a coluna cresce, a tabela rola pro lado */
+.mx .okmk{color:var(--okpen);font-size:24px}
+.mx .wb .w,.mx .ex .exw{overflow:visible!important;text-overflow:clip!important;max-width:none!important}
 .ex .exw.out{opacity:0;transform:translateY(-6px)}
 @media (prefers-reduced-motion:reduce){.ex .exw{transition:none}}
 
@@ -860,7 +863,7 @@ function onPresence(){
   if(amHost()){
     if(!state)state=freshState();
     if(!was){state.by=myId;rearmTimers()}
-    syncPlayers();
+    syncPlayers();checkAllOk();                                   // quem saiu não trava a correção
   }
   renderAll();
 }
@@ -897,6 +900,10 @@ function syncPlayers(){
   pushState();
 }
 function pickSpinner(){const o=onlineOrder();state.turn=(state.turn+1)%o.length;state.spinner=o[state.turn]}
+// na correção, cada jogador (gente, conectado) aperta "Tudo certo"; quando todos apertarem, os pontos valem
+const approvers=rv=>rv.order.filter(p=>!isBot(p)&&presence[p]);
+function checkAllOk(){if(!amHost()||state?.phase!=='review'||!state.review?.dictDone)return;const rv=state.review,need=approvers(rv);
+  if(need.length&&need.every(p=>rv.ok?.[p]))handleAction(myId,'confirm')}
 function nextTurn(){state.round++;pickSpinner();state.phase='spin';state.letter=null;state.review=null;state.stopBy=null;state.spin=null;hostAnswers={};pushState();scheduleBotSpin()}
 function clearTimers(){for(const k in timers)clearTimeout(timers[k]);timers={}}
 function rearmTimers(){
@@ -936,7 +943,10 @@ function handleAction(from,type,d){
   case 'vote': if(state.phase!=='review'||!state.review)return;{
       const {pid,cat,val}=d;if(pid===from||!state.review.rows[pid]||!state.review.cats.includes(cat))return;
       const k=pid+'|'+cat;const vs=state.review.votes[k]||(state.review.votes[k]={});
-      if(val==='yes'||val==='no')vs[from]=val;else delete vs[from];pushState();}break;
+      if(val==='yes'||val==='no')vs[from]=val;else delete vs[from];
+      state.review.ok={};pushState();}break;                       // voto mudou: todo mundo confere de novo
+  case 'ok': if(state.phase!=='review'||!state.review||!state.review.dictDone)return;{
+      const ok=state.review.ok||(state.review.ok={});if(d.val)ok[from]=true;else delete ok[from];pushState();checkAllOk();}break;
   case 'confirm': if(!H||state.phase!=='review')return;{
       const res=computePoints(state.review,state.config);
       for(const pid in res.total){if(!state.players[pid])state.players[pid]={name:state.review.names[pid]||'?',shirt:'#4A5163',skin:SKINS[0],score:0,joinedAt:Date.now()};state.players[pid].score+=res.total[pid]}
@@ -1122,8 +1132,12 @@ function renderStage(){
   else if(ph==='review')S.append(reviewView());
   else S.append(scoresView());
   if(turned)window.scrollTo(0,0);else if(ph==='review'||ph==='lobby')window.scrollTo(0,keep);
-  const mx=S.querySelector('.mxwrap');if(mx)mx.scrollLeft=keepX;
+  const mx=S.querySelector('.mxwrap');if(mx){mx.scrollLeft=keepX;fitMx(mx);document.fonts?.ready.then(()=>fitMx(mx))}
 }
+// tema comprido: diminui a letra até caber nas 2 linhas, sem reticências
+function fitCat(e,min=12){e.style.fontSize='';let s=parseFloat(getComputedStyle(e).fontSize);
+  while(e.scrollHeight>e.clientHeight+1&&s>min){s--;e.style.fontSize=s+'px'}}
+function fitMx(root){root.querySelectorAll('.cat .cl').forEach(e=>fitCat(e))}
 
 /* A parte de ações fica presa no pé da tela.
    - Durante a rolagem: só as linhas do fundo acompanham as do caderno (sem mexer no botão, nada pula).
@@ -1174,8 +1188,12 @@ function renderAction(){
   }else if(ph==='stopping'){
     inn.append(el('div',{class:'stopnote',id:'stopMsg',role:'status'}));
   }else if(ph==='review'){
-    if(H)inn.append(el('button',{class:'btn wide',text:'Confirmar pontos',onclick:()=>act('confirm')}));
-    else inn.append(el('p',{class:'hint',text:`${nameOf(hostId)} confirma os pontos quando todos votarem`}));
+    const rv=state.review,need=rv?approvers(rv):[],done=need.filter(p=>rv.ok?.[p]),miss=need.filter(p=>!rv.ok?.[p]);
+    const who=ids=>ids.map(p=>p===myId?'você':nameOf(p)).join(', ');
+    if(!rv||!rv.dictDone)inn.append(el('p',{class:'hint',text:'Conferindo as palavras no dicionário…'}));
+    else if(!need.includes(myId))inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)} dar tudo certo`}));
+    else if(!rv.ok?.[myId])inn.append(el('button',{class:'btn wide',text:`Tudo certo ✓ (${done.length} de ${need.length})`,onclick:()=>act('ok',{val:true})}));
+    else inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)}`}),el('button',{class:'btn wide ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})}));
   }else if(ph==='scores'){
     if(H){const o=onlineOrder();const nx=o[(state.turn+1)%o.length];inn.append(el('button',{class:'btn wide',text:`Próxima rodada (${nameOf(nx)} sorteia)`,onclick:()=>act('next')}))}
     else inn.append(el('p',{class:'hint',text:`Aguardando ${nameOf(hostId)} seguir`}));
@@ -1305,7 +1323,7 @@ function reviewView(){
   // matriz: temas nas linhas, jogadores nas colunas, uma linha da pauta por tema
   const tbl=el('table',{class:'mx'});
   tbl.append(el('thead',{},el('tr',{},el('th',{class:'cat',scope:'col',text:'Tema'}),
-    rv.order.map(pid=>el('th',{scope:'col',class:pid===myId?'me':''},avatar(rv.names[pid],colorOf(pid)),el('span',{class:'nm',text:pid===myId?'Você':rv.names[pid]}))))));
+    rv.order.map(pid=>el('th',{scope:'col',class:pid===myId?'me':''},avatar(rv.names[pid],colorOf(pid)),el('span',{class:'nm',text:pid===myId?'Você':rv.names[pid]}),rv.ok?.[pid]?el('span',{class:'okmk',title:'Deu tudo certo',text:' ✓'}):'')))));
   const tb=el('tbody');
   for(const cat of rv.cats){
     const tr=el('tr',{},el('th',{class:'cat',scope:'row',title:cat},el('span',{class:'cl',text:cat})));
