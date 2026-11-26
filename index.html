@@ -1119,7 +1119,7 @@ function renderStage(){
   if(!state){stageKey='';S.innerHTML='';S.append(el('p',{class:'muted',text:'Entrando na sala…'}));return}
   const ph=state.phase;let key;
   if(['play','stopping'].includes(ph))key='sheet:'+state.game+':'+state.round+state.letter+(ph==='stopping'?'s':'');
-  else if(ph==='review')key='rv:'+state.review?.id+JSON.stringify(state.review?.votes)+JSON.stringify(state.review?.dict)+hostId;
+  else if(ph==='review')key='rv:'+state.review?.id+JSON.stringify(state.review?.votes)+JSON.stringify(state.review?.dict)+JSON.stringify(state.review?.ok||{})+hostId;
   else if(ph==='lobby')key='lb:'+JSON.stringify(state.config)+JSON.stringify(state.bots||{})+hostId+amHost();
   else if(ph==='spin'||ph==='spinning')key=ph+state.round+state.spinner+hostId+(state.spin?.id||'');
   else key=ph+state.round+hostId+Object.keys(presence).length+JSON.stringify(state.last);
@@ -1193,6 +1193,9 @@ function renderAction(){
     if(!rv||!rv.dictDone)inn.append(el('p',{class:'hint',text:'Conferindo as palavras no dicionário…'}));
     else if(!need.includes(myId))inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)} dar tudo certo`}));
     else if(!rv.ok?.[myId])inn.append(el('button',{class:'btn wide',text:`Tudo certo ✓ (${done.length} de ${need.length})`,onclick:()=>act('ok',{val:true})}));
+    else if(H)inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)}`}),el('div',{class:'two'},   // anfitrião pode destravar se alguém sumiu
+      el('button',{class:'btn ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})}),
+      el('button',{class:'btn',text:'Seguir',title:'Seguir sem esperar',onclick:()=>act('confirm')})));
     else inn.append(el('p',{class:'hint',text:`Esperando ${who(miss)}`}),el('button',{class:'btn wide ghost',text:'Quero rever',onclick:()=>act('ok',{val:false})}));
   }else if(ph==='scores'){
     if(H){const o=onlineOrder();const nx=o[(state.turn+1)%o.length];inn.append(el('button',{class:'btn wide',text:`Próxima rodada (${nameOf(nx)} sorteia)`,onclick:()=>act('next')}))}
