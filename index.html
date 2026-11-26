@@ -384,6 +384,17 @@ body{font-size:19px}
 /* ===== correção em matriz: temas nas linhas, jogadores nas colunas ===== */
 .mxwrap{overflow-x:auto;margin-bottom:var(--ln);scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .mxwrap::-webkit-scrollbar{display:none}
+.mxnav{display:none;justify-content:flex-end;align-items:center;gap:8px;height:var(--ln)}
+.mxnav .hint{font-size:14px;color:var(--pencil);margin-right:4px}
+.mxnav button{width:40px;height:30px;padding:0;font-size:18px;line-height:1;color:var(--ink);background:#fff;border:2px solid var(--pencil);border-radius:14px 225px 14px 255px/255px 14px 225px 14px;cursor:pointer}
+.mxnav button:disabled{opacity:.35;cursor:default}
+@media (hover:hover) and (pointer:fine){
+  .mxnav.on{display:flex}
+  .mxwrap.ov{scrollbar-width:thin;scrollbar-color:var(--pencil) transparent;cursor:grab}
+  .mxwrap.ov::-webkit-scrollbar{display:block;height:10px}
+  .mxwrap.ov::-webkit-scrollbar-thumb{background:var(--pencil);border-radius:6px}
+  .mxwrap.drag{cursor:grabbing;user-select:none}
+}
 table.mx{border-collapse:collapse;border-spacing:0}
 .mx th,.mx td{padding:0 8px;text-align:left;font-weight:400;vertical-align:middle}
 .mx thead th{height:var(--ln);white-space:nowrap;font-family:var(--hand);font-size:22px;color:var(--ink)}
@@ -878,7 +889,7 @@ let lastLocal=null;
 /* ================= LÓGICA DO ANFITRIÃO ================= */
 let hostAnswers={};
 let timers={};
-function freshState(){return{v:0,by:myId,phase:'lobby',config:{cats:[...CATS_DEFAULT],rounds:5,time:0,rule:'all',bonus:false,exclude:'KWY'},players:{},round:0,turn:-1,spinner:null,letter:null,used:[],spin:null,stopBy:null,review:null,last:null,playDur:0,bots:{}}}
+function freshState(){return{v:0,by:myId,phase:'lobby',config:{cats:[...CATS_DEFAULT],rounds:5,time:0,rule:'any',bonus:false,exclude:'KWY'},players:{},round:0,turn:-1,spinner:null,letter:null,used:[],spin:null,stopBy:null,review:null,last:null,playDur:0,bots:{}}}
 /* ===== robôs ===== */
 const BOT_LEVELS={bom:{name:'Robô Bom',fill:.45,color:'#1C9A5E'},medio:{name:'Robô Médio',fill:.7,color:'#F08A24'},otimo:{name:'Robô Ótimo',fill:.95,color:'#7B4FD6'}};
 const isBot=id=>!!state?.bots?.[id];
@@ -923,7 +934,7 @@ function handleAction(from,type,d){
   case 'config': if(!H||state.phase!=='lobby')return;{
       const c=d.config||{};const cats=(Array.isArray(c.cats)?c.cats:[]).map(s=>String(s).trim().slice(0,30)).filter(Boolean);
       state.config={cats:[...new Set(cats)].slice(0,16),rounds:Math.max(1,Math.min(26,c.rounds|0||5)),time:[0,60,90,120,180,240].includes(c.time|0)?c.time|0:0,
-        rule:c.rule==='any'?'any':'all',bonus:!!c.bonus,kids:!!c.kids,exclude:String(c.exclude||'').toUpperCase().replace(/[^A-Z]/g,'').slice(0,20)};
+        rule:c.rule==='all'?'all':'any',bonus:!!c.bonus,kids:!!c.kids,exclude:String(c.exclude||'').toUpperCase().replace(/[^A-Z]/g,'').slice(0,20)};
       pushState();}break;
   case 'start': if(!H||!['lobby','end'].includes(state.phase))return;
       if(!state.config.cats.length){toast('Adicione pelo menos 1 tema');return}
@@ -1137,6 +1148,23 @@ function renderStage(){
 // tema comprido: diminui a letra até caber nas 2 linhas, sem reticências
 function fitCat(e,min=12){e.style.fontSize='';let s=parseFloat(getComputedStyle(e).fontSize);
   while(e.scrollHeight>e.clientHeight+1&&s>min){s--;e.style.fontSize=s+'px'}}
+// tabela larga no PC: setas, barra visível e arrastar com o mouse
+function mxBox(tbl){
+  const w=el('div',{class:'mxwrap'},tbl),hint=el('span',{class:'hint',text:'arraste ou use as setas'});
+  const step=d=>w.scrollBy({left:d*Math.max(160,w.clientWidth*.7),behavior:REDUCED?'auto':'smooth'});
+  const l=el('button',{type:'button','aria-label':'Ver colunas à esquerda',onclick:()=>step(-1)},'◀'),r=el('button',{type:'button','aria-label':'Ver colunas à direita',onclick:()=>step(1)},'▶');
+  const nav=el('div',{class:'mxnav'},hint,l,r);
+  const upd=()=>{const ov=w.scrollWidth>w.clientWidth+2;nav.classList.toggle('on',ov);w.classList.toggle('ov',ov);
+    l.disabled=w.scrollLeft<=1;r.disabled=w.scrollLeft>=w.scrollWidth-w.clientWidth-1};
+  w.addEventListener('scroll',upd,{passive:true});
+  new ResizeObserver(upd).observe(w);requestAnimationFrame(upd);
+  let x0=null,s0=0,moved=false;
+  w.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'||e.button||!w.classList.contains('ov')||e.target.closest('button,a,input'))return;x0=e.clientX;s0=w.scrollLeft;moved=false});
+  w.addEventListener('pointermove',e=>{if(x0==null)return;const dx=e.clientX-x0;if(!moved&&Math.abs(dx)<4)return;if(!moved)w.setPointerCapture(e.pointerId);moved=true;w.classList.add('drag');w.scrollLeft=s0-dx});
+  const end=()=>{x0=null;w.classList.remove('drag')};w.addEventListener('pointerup',end);w.addEventListener('pointercancel',end);
+  w.addEventListener('click',e=>{if(moved){e.stopPropagation();e.preventDefault();moved=false}},true);
+  return [nav,w];
+}
 function fitMx(root){root.querySelectorAll('.cat .cl').forEach(e=>fitCat(e))}
 
 /* A parte de ações fica presa no pé da tela.
@@ -1346,7 +1374,7 @@ function reviewView(){
     tb.append(tr)}
   tbl.append(tb,el('tfoot',{},el('tr',{},el('th',{class:'cat',scope:'row',text:'Total'}),
     rv.order.map(pid=>el('td',{class:'tot'+(pid===myId?' me':'')},el('div',{class:'ln'},el('span',{}),el('span',{class:'totn num',text:res.total[pid]}),el('span',{})))))));
-  f.append(el('div',{class:'mxwrap'},tbl));
+  f.append(...mxBox(tbl));
   return f;
 }
 function scoresView(){
@@ -1376,7 +1404,7 @@ function scoresView(){
       hist.map(h=>{const g=h.gain?.[p.id];return el('td',{class:'rd num'+(g==null?' none':'')},g==null?'–':String(g))}),
       el('td',{class:'tt num',text:p.score})))});
   tbl.append(tb);
-  f.append(el('div',{class:'mxwrap'},tbl));
+  f.append(...mxBox(tbl));
   return f;
 }
 
