@@ -243,6 +243,7 @@ li.bad .pts{opacity:.55}
 .badge{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 4px;border-radius:10px;background:var(--postit);color:#5C4A00;font-family:var(--ui);font-size:12px;font-weight:700;line-height:1!important;flex:none}
 .badge.q{background:#FFD8A8;color:#7A3E00}
 .badge.x{background:var(--redpen);color:#fff}
+.badge.w{background:#E3E7EE;color:#5A6270}
 .legend{font-family:var(--ui)!important;font-size:13px!important;color:var(--pencil);display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .vt{display:flex;gap:4px}
 .vote small{font-size:12px}
@@ -1011,6 +1012,14 @@ function autoCheck(raw,letter){
   return'ok';
 }
 const dkey=raw=>String(raw).trim().toLowerCase().replace(/\s+/g,' ');
+// "a abelha", "o urso", "uma uva": o artigo da frente não conta
+const core=raw=>String(raw||'').trim().replace(/^(o|a|os|as|um|uma|uns|umas)\s+(?=\S)/i,'');
+// formas no singular para procurar no dicionário (gatos→gato, leões→leão, animais→animal, flores→flor)
+function singulars(w){const out=[],r=[[/ões$/,'ão'],[/ães$/,'ão'],[/ais$/,'al'],[/éis$/,'el'],[/óis$/,'ol'],[/uis$/,'ul'],[/res$/,'r'],[/zes$/,'z'],[/ses$/,'s'],[/ns$/,'m'],[/s$/,'']];
+  if(w.length>3)for(const[a,b]of r)if(a.test(w)){out.push(w.replace(a,b));if(b!=='')break}
+  return[...new Set(out)].filter(x=>x&&x!==w)}
+// chave para achar repetidas: sem acento, sem maiúscula e no singular ("Pão" = "pao" = "pães")
+const gkey=n=>n.split(' ').map(t=>t.length>3?t.replace(/oes$/,'ao').replace(/aes$/,'ao').replace(/ais$/,'al').replace(/eis$/,'el').replace(/res$/,'r').replace(/zes$/,'z').replace(/ns$/,'m').replace(/([^s])s$/,'$1'):t).join(' ');
 function finishRound(){
   if(state.phase!=='stopping')return;
   const cats=state.config.cats,letter=state.letter;
@@ -1018,42 +1027,52 @@ function finishRound(){
   const order=[...pids].sort((a,b)=>(state.players[a]?.joinedAt||0)-(state.players[b]?.joinedAt||0));
   const rows={},names={},dict={};
   for(const pid of order){rows[pid]={};names[pid]=state.players[pid]?.name||presence[pid]?.name||'?';const a=hostAnswers[pid]||{};
-    for(const c of cats){const w=(a[c]||'').trim();const st=autoCheck(w,letter);rows[pid][c]={w,n:norm(w),a:st};if(st==='ok')dict[dkey(w)]='pending'}}
+    for(const c of cats){const w=(a[c]||'').trim(),cw=core(w),n=norm(cw),k=dkey(cw);const st=autoCheck(cw,letter);rows[pid][c]={w,n,g:gkey(n),k,a:st};if(st==='ok')dict[k]='pending'}}
   state.review={id:rid(6),letter,cats:[...cats],order,rows,names,dict,votes:{},dictDone:false};
   state.phase='review';pushState();runDictionary(state.review.id);
 }
+// cada consulta tem tempo limite: internet lenta nunca deixa a palavra presa em "verificando…"
+async function getJSON(url,ms=7000){const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);
+  try{return await (await fetch(url,{signal:ac.signal})).json()}finally{clearTimeout(t)}}
 async function existing(host,titles){
-  const out=new Set();
-  for(let i=0;i<titles.length;i+=45){const chunk=titles.slice(i,i+45);
-    const url=`https://${host}/w/api.php?action=query&format=json&origin=*&redirects=1&titles=${encodeURIComponent(chunk.join('|'))}`;
-    const r=await fetch(url);const j=await r.json();const q=j.query||{};
+  const out=new Set(),chunks=[];for(let i=0;i<titles.length;i+=45)chunks.push(titles.slice(i,i+45));
+  await Promise.all(chunks.map(async chunk=>{
+    const q=(await getJSON(`https://${host}/w/api.php?action=query&format=json&origin=*&redirects=1&titles=${encodeURIComponent(chunk.join('|'))}`)).query||{};
     const nm={},rd={};(q.normalized||[]).forEach(x=>nm[x.from]=x.to);(q.redirects||[]).forEach(x=>rd[x.from]=x.to);
     const ex=new Set(Object.values(q.pages||{}).filter(p=>!('missing' in p)&&!('invalid' in p)).map(p=>p.title));
-    for(const t of chunk){let x=nm[t]||t;x=rd[x]||x;if(ex.has(x))out.add(t)}}
+    for(const t of chunk){let x=nm[t]||t;x=rd[x]||x;if(ex.has(x))out.add(t)}}));
   return out;
 }
+// procura ignorando acentos: "pao" acha "pão", "agua" acha "água"
 async function searchFolded(host,word){
-  const url=`https://${host}/w/api.php?action=query&format=json&origin=*&list=search&srnamespace=0&srlimit=10&srsearch=${encodeURIComponent(word)}`;
-  const j=await (await fetch(url)).json();const n=norm(word);
-  return (j.query?.search||[]).some(x=>norm(x.title)===n||norm(x.title.replace(/\s*\(.*\)$/,''))===n)}
+  const j=await getJSON(`https://${host}/w/api.php?action=query&format=json&origin=*&list=search&srnamespace=0&srlimit=10&srsearch=${encodeURIComponent(word)}`);
+  const ns=new Set([word,...singulars(word)].map(norm));
+  return (j.query?.search||[]).some(x=>ns.has(norm(x.title))||ns.has(norm(x.title.replace(/\s*\(.*\)$/,''))))}
+let dictBusy=null;
 async function runDictionary(rid_){
-  const rv=state.review;if(!rv||rv.id!==rid_||rv.dictDone)return;
+  const rv=state.review;if(!rv||rv.id!==rid_||rv.dictDone||dictBusy===rid_)return;
   const words=Object.keys(rv.dict).filter(k=>rv.dict[k]==='pending');
   if(!words.length){rv.dictDone=true;pushState();return}
-  const result={};
-  try{
-    const t1=[];words.forEach(w=>{t1.push(w);t1.push(cap(w))});
-    const f1=await existing('pt.wiktionary.org',[...new Set(t1)]);
-    const miss=words.filter(w=>!(f1.has(w)||f1.has(cap(w))));words.forEach(w=>{if(!miss.includes(w))result[w]='found'});
-    if(miss.length){const t2=[];miss.forEach(w=>{t2.push(cap(w));t2.push(titleCase(w))});
-      const f2=await existing('pt.wikipedia.org',[...new Set(t2)]);
-      miss.forEach(w=>{result[w]=(f2.has(cap(w))||f2.has(titleCase(w)))?'found':'missing'})}
-    // sem acento ou com acento trocado: procura ignorando os acentos
-    const still=words.filter(w=>result[w]==='missing');
-    for(const w of still.slice(0,30)){try{if(await searchFolded('pt.wiktionary.org',w)||await searchFolded('pt.wikipedia.org',w))result[w]='found'}catch{}}
-  }catch(e){words.forEach(w=>{if(!result[w])result[w]='unknown'})}
-  if(!state.review||state.review.id!==rid_)return;
-  for(const w in result)state.review.dict[w]=result[w];
+  dictBusy=rid_;const result={},forms=w=>[w,...singulars(w)];
+  const work=(async()=>{
+    // Wikcionário e Wikipédia ao mesmo tempo, com a palavra e o singular dela
+    const t1=[],t2=[];words.forEach(w=>forms(w).forEach(f=>{t1.push(f,cap(f));t2.push(cap(f),titleCase(f))}));
+    const [f1,f2]=await Promise.all([existing('pt.wiktionary.org',[...new Set(t1)]).catch(()=>new Set()),existing('pt.wikipedia.org',[...new Set(t2)]).catch(()=>new Set())]);
+    words.forEach(w=>{if(forms(w).some(f=>f1.has(f)||f1.has(cap(f))||f2.has(cap(f))||f2.has(titleCase(f))))result[w]='found'});
+    // mesma palavra com e sem acento: se uma foi achada, a outra também vale
+    const ok=new Set(words.filter(w=>result[w]).map(w=>gkey(norm(w))));
+    words.forEach(w=>{if(!result[w]&&ok.has(gkey(norm(w))))result[w]='found'});
+    // o resto: busca ignorando acentos nos dois sites ao mesmo tempo
+    const miss=words.filter(w=>!result[w]).slice(0,30);
+    await Promise.all(miss.map(async w=>{const r=await Promise.allSettled([searchFolded('pt.wiktionary.org',w),searchFolded('pt.wikipedia.org',w)]);
+      if(r.some(x=>x.value===true))result[w]='found'}));
+    words.forEach(w=>{if(!result[w])result[w]='missing'});
+  })();
+  // no máximo 15 s: o que não deu tempo de conferir vale normalmente (os jogadores ainda podem votar)
+  let ended=false;await Promise.race([work.then(()=>ended=true).catch(()=>{}),new Promise(r=>setTimeout(r,15000))]);
+  if(dictBusy===rid_)dictBusy=null;
+  if(!state.review||state.review.id!==rid_||state.review.dictDone)return;
+  for(const w of words)state.review.dict[w]=ended?(result[w]||'unknown'):(result[w]==='found'?'found':'unknown');
   state.review.dictDone=true;pushState();
 }
 
@@ -1061,7 +1080,7 @@ async function runDictionary(rid_){
 function cellStatus(rv,pid,cat){
   const c=rv.rows[pid]?.[cat];if(!c||c.a==='empty')return{valid:false,why:'',fixed:true};
   if(c.a==='letter')return{valid:false,why:'letra errada',fixed:true};
-  const d=rv.dict[dkey(c.w)];
+  const d=rv.dict[c.k||dkey(c.w)];
   let base=c.a==='ok'&&d!=='missing';
   let why=c.a==='short'?'curta demais':c.a==='gibberish'?'parece inventada':d==='missing'?'fora do dicionário':d==='pending'?'verificando…':'';
   const vs=rv.votes[pid+'|'+cat]||{};let y=0,n=0;for(const v in vs){if(v===pid)continue;vs[v]==='yes'?y++:n++}
@@ -1072,9 +1091,9 @@ function computePoints(rv,cfg){
   const cell={},total={};rv.order.forEach(p=>{cell[p]={};total[p]=0});
   for(const cat of rv.cats){
     const st={},groups={};let validCount=0;
-    for(const pid of rv.order){const s=cellStatus(rv,pid,cat);st[pid]=s;if(s.valid){validCount++;const k=rv.rows[pid][cat].n;(groups[k]=groups[k]||[]).push(pid)}}
+    for(const pid of rv.order){const s=cellStatus(rv,pid,cat);st[pid]=s;if(s.valid){validCount++;const r=rv.rows[pid][cat],k=r.g||r.n;(groups[k]=groups[k]||[]).push(pid)}}
     for(const pid of rv.order){const s=st[pid];let pts=0;
-      if(s.valid){const k=groups[rv.rows[pid][cat].n].length;pts=k===1?((cfg.bonus&&validCount===1)?20:10):Math.round(10/k);s.shared=k}
+      if(s.valid){const r=rv.rows[pid][cat],k=groups[r.g||r.n].length;pts=k===1?((cfg.bonus&&validCount===1)?20:10):Math.round(10/k);s.shared=k}
       s.pts=pts;cell[pid][cat]=s;total[pid]+=pts}}
   return{cell,total};
 }
@@ -1381,7 +1400,7 @@ function reviewView(){
       const exs=!c.w?examplesFor(cat,rv.letter):[];
       const wb=el('span',{class:'wb'},exs.length?el('span',{class:'ex','data-ex':exs.join(','),title:'Exemplos: '+exs.join(', ')},el('span',{class:'exl',text:'ex.'}),el('span',{class:'exw',text:exs[exI%exs.length]})):el('span',{class:'w',title:c.w||'',text:c.w||'—'}));
       if(s.shared>1)wb.append(el('span',{class:'badge',title:`Repetida por ${s.shared}`,text:'×'+s.shared}));
-      if(s.why){const dic=s.why==='fora do dicionário';wb.append(el('span',{class:'badge'+(dic?' q':' x'),title:s.why,text:dic?'?':s.why==='verificando…'?'…':'!'}))}
+      if(s.why){const dic=s.why==='fora do dicionário';const wait=s.why==='verificando…';wb.append(el('span',{class:'badge'+(dic?' q':wait?' w':' x'),title:s.why,text:dic?'?':wait?'…':'!'}))}
       const pts=el('span',{class:'pts num',text:(s.pts>0?'+':'')+s.pts});
       let vs=el('span',{class:'vpair'});
       if(!s.fixed&&pid!==myId){const mv=(rv.votes[pid+'|'+cat]||{})[myId];
